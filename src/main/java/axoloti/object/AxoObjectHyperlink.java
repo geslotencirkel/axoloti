@@ -43,7 +43,12 @@ public class AxoObjectHyperlink extends AxoObjectAbstract {
         o.PostConstructor();
         return o;
     }
- 
+    
+    @Override
+    public String GenerateSHA() {
+        return null;
+    }
+
     @Override
     public String GenerateUUID() {
         return null;

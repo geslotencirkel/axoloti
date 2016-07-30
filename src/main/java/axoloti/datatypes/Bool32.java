@@ -17,7 +17,6 @@
  */
 package axoloti.datatypes;
 
-import axoloti.Theme;
 import java.awt.Color;
 
 /**
@@ -55,12 +54,12 @@ public class Bool32 implements DataType {
 
     @Override
     public String CType() {
-        return "bool ";
+        return "int32_t ";
     }
 
     @Override
     public Color GetColor() {
-        return Theme.getCurrentTheme().Cable_Bool32;
+        return Color.yellow;
     }
 
     @Override
@@ -92,10 +91,5 @@ public class Bool32 implements DataType {
     @Override
     public boolean isPointer() {
         return false;
-    }
-
-    @Override
-    public String UnconnectedSink() {
-        return "(bool &)UNCONNECTED_OUTPUT";
     }
 }

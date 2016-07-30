@@ -17,9 +17,7 @@
  */
 package axoloti.dialogs;
 
-import axoloti.ConnectionStatusListener;
 import axoloti.MainFrame;
-import axoloti.USBBulkConnection;
 import components.RControlButtonWithLed;
 import components.RControlColorLed;
 import components.RControlEncoder;
@@ -41,14 +39,13 @@ import qcmds.QCmdVirtualButton;
  *
  * @author Johannes Taelman
  */
-public class AxolotiRemoteControl extends javax.swing.JFrame implements ConnectionStatusListener {
+public class AxolotiRemoteControl extends javax.swing.JFrame {
 
     /**
      * Creates new form AxolotiRemoteControl
      */
     public AxolotiRemoteControl() {
         initComponents();
-        USBBulkConnection.GetConnection().addConnectionStatusListener(this);
         setIconImage(new ImageIcon(getClass().getResource("/resources/axoloti_icon.png")).getImage());
         jPanelLCD.setLayout(new FlowLayout());
         ImageIcon ii = new ImageIcon(bImageScaled);
@@ -136,28 +133,6 @@ public class AxolotiRemoteControl extends javax.swing.JFrame implements Connecti
         jButtonUp.setFocusable(false);
         jButtoneEnter.setFocusable(false);
         jButtonShift.setFocusable(false);
-    }
-
-    @Override
-    public void ShowConnect() {
-        jButtonCancel.setEnabled(true);
-        jButtonDown.setEnabled(true);
-        jButtonLeft.setEnabled(true);
-        jButtonRight.setEnabled(true);
-        jButtonUp.setEnabled(true);
-        jButtoneEnter.setEnabled(true);
-        jButtonShift.setEnabled(true);
-    }
-
-    @Override
-    public void ShowDisconnect() {
-        jButtonCancel.setEnabled(false);
-        jButtonDown.setEnabled(false);
-        jButtonLeft.setEnabled(false);
-        jButtonRight.setEnabled(false);
-        jButtonUp.setEnabled(false);
-        jButtoneEnter.setEnabled(false);
-        jButtonShift.setEnabled(false);
     }
 
     class MouseListerTxer implements MouseListener {

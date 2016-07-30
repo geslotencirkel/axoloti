@@ -36,12 +36,4 @@ public class InletFrac32BufferPos extends InletFrac32Buffer {
     SignalMetaData GetSignalMetaData() {
         return SignalMetaData.positive;
     }
-    
-    static public final String TypeName = "frac32buffer.positive";
-
-    @Override
-    public String getTypeName() {
-        return TypeName;
-    }
-    
 }

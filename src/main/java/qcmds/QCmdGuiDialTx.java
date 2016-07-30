@@ -17,8 +17,8 @@
  */
 package qcmds;
 
-import axoloti.Patch;
 import axoloti.parameters.ParameterInstance;
+import axoloti.Patch;
 
 /**
  *
@@ -28,7 +28,7 @@ public class QCmdGuiDialTx implements QCmdGUITask {
 
     @Override
     public void DoGUI(QCmdProcessor processor) {
-        if (processor.isQueueEmpty()) {
+        if (processor.queue.isEmpty()) {
             Patch patch = processor.getPatch();
             if (patch != null) {
                 for (ParameterInstance p : patch.getParameterInstances()) {

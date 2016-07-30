@@ -17,9 +17,8 @@
  */
 package components.control;
 
-import axoloti.Theme;
-import axoloti.utils.KeyUtils;
 import java.awt.BasicStroke;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -76,7 +75,7 @@ public class HRadioComponent extends ACtrlComponent {
 
     @Override
     public void keyPressed(KeyEvent ke) {
-        if (KeyUtils.isIgnoreModifierDown(ke)) {
+        if (ke.isAltDown() || ke.isAltGraphDown() || ke.isControlDown() || ke.isMetaDown()) {
             return;
         }
         switch (ke.getKeyCode()) {
@@ -142,9 +141,9 @@ public class HRadioComponent extends ACtrlComponent {
         g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
                 RenderingHints.VALUE_INTERPOLATION_BILINEAR);
         if (isEnabled()) {
-            g2.setColor(Theme.getCurrentTheme().Component_Secondary);
+            g2.setColor(Color.white);
         } else {
-            g2.setColor(Theme.getCurrentTheme().Object_Default_Background);
+            g2.setColor(getBackground());
         }
         for (int i = 0; i < n; i++) {
             g2.fillOval(i * bsize, 0, bsize, bsize);
@@ -184,6 +183,7 @@ public class HRadioComponent extends ACtrlComponent {
     public void setValue(double value) {
         if (this.value != value) {
             this.value = value;
+            repaint();
         }
         fireEvent();
     }

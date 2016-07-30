@@ -18,6 +18,7 @@
 package qcmds;
 
 import axoloti.Connection;
+import java.nio.ByteBuffer;
 
 /**
  *

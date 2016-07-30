@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2013 - 2016 Johannes Taelman
+ * Copyright (C) 2013, 2014 Johannes Taelman
  *
  * This file is part of Axoloti.
  *
@@ -17,8 +17,8 @@
  */
 package axoloti.attributedefinition;
 
+import axoloti.attribute.AttributeInstance;
 import axoloti.attribute.AttributeInstanceObjRef;
-import axoloti.object.AxoObjectInstance;
 
 /**
  *
@@ -26,23 +26,15 @@ import axoloti.object.AxoObjectInstance;
  */
 public class AxoAttributeObjRef extends AxoAttribute {
 
+    public AxoAttributeObjRef(String name) {
+        this.name = name;
+    }
+
     public AxoAttributeObjRef() {
     }
 
-    public AxoAttributeObjRef(String name) {
-        super(name);
-    }
-
     @Override
-    public AttributeInstanceObjRef InstanceFactory(AxoObjectInstance o) {
-        return new AttributeInstanceObjRef(this, o);
+    public AttributeInstance InstanceFactory() {
+        return new AttributeInstanceObjRef();
     }
-
-    static public final String TypeName = "objref";
-
-    @Override
-    public String getTypeName() {
-        return TypeName;
-    }
-
 }

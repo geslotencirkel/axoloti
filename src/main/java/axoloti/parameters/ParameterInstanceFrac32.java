@@ -24,11 +24,7 @@ import axoloti.datatypes.Frac32;
 import axoloti.datatypes.Value;
 import axoloti.datatypes.ValueFrac32;
 import axoloti.object.AxoObjectInstance;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.util.ArrayList;
-import javax.swing.JMenuItem;
-import javax.swing.JPopupMenu;
 import org.simpleframework.xml.Attribute;
 import org.simpleframework.xml.ElementList;
 
@@ -36,12 +32,12 @@ import org.simpleframework.xml.ElementList;
  *
  * @author Johannes Taelman
  */
-public abstract class ParameterInstanceFrac32<Tx extends ParameterFrac32> extends ParameterInstance<Tx> {
+public abstract class ParameterInstanceFrac32 extends ParameterInstance<Frac32> {
 
     @Attribute(name = "value", required = false)
     public double getValuex() {
         return value.getDouble();
-    }        
+    }
     @ElementList(required = false)
     ArrayList<Modulation> modulators;
 
@@ -61,7 +57,7 @@ public abstract class ParameterInstanceFrac32<Tx extends ParameterFrac32> extend
 
     abstract double getTick();
 
-    public ParameterInstanceFrac32(Tx param, AxoObjectInstance axoObj1) {
+    public ParameterInstanceFrac32(Parameter<Frac32> param, AxoObjectInstance axoObj1) {
         super(param, axoObj1);
         //value = new ValueFrac32();
     }
@@ -83,7 +79,7 @@ public abstract class ParameterInstanceFrac32<Tx extends ParameterFrac32> extend
     }
 
     @Override
-    public void setValue(Value value) {
+    public void setValue(Value<Frac32> value) {
         super.setValue(value);
         this.value.setDouble(value.getDouble());
         updateV();
@@ -94,21 +90,6 @@ public abstract class ParameterInstanceFrac32<Tx extends ParameterFrac32> extend
         if (((ParameterFrac32) parameter).DefaultValue != null) {
             value.setRaw(((ParameterFrac32) parameter).DefaultValue.getRaw());
         }
-    }
-
-    @Override
-    public void populatePopup(JPopupMenu m) {
-        super.populatePopup(m);
-        JMenuItem m_default = new JMenuItem("Reset to default value");
-        m_default.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                applyDefaultValue();
-                getControlComponent().setValue(value.getDouble());
-                handleAdjustment();
-            }
-        });
-        m.add(m_default);
     }
 
     public void updateModulation(int index, double amount) {
@@ -215,10 +196,4 @@ public abstract class ParameterInstanceFrac32<Tx extends ParameterFrac32> extend
         }
         return true;
     }
-    
-    @Override
-    public String GenerateCodeInitModulator(String vprefix, String StructAccces) {
-        return "";
-    }    
-    
 }

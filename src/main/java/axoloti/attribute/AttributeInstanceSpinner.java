@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2013 - 2016 Johannes Taelman
+ * Copyright (C) 2013, 2014 Johannes Taelman
  *
  * This file is part of Axoloti.
  *
@@ -17,6 +17,7 @@
  */
 package axoloti.attribute;
 
+import axoloti.attributedefinition.AxoAttribute;
 import axoloti.attributedefinition.AxoAttributeSpinner;
 import axoloti.object.AxoObjectInstance;
 import components.control.ACtrlEvent;
@@ -27,32 +28,29 @@ import components.control.NumberBoxComponent;
  *
  * @author Johannes Taelman
  */
-public class AttributeInstanceSpinner extends AttributeInstanceInt<AxoAttributeSpinner> {
+public class AttributeInstanceSpinner extends AttributeInstanceInt {
 
     NumberBoxComponent spinner;
-    
-    private AxoObjectInstance axoObj;
 
     public AttributeInstanceSpinner() {
     }
 
-    public AttributeInstanceSpinner(AxoAttributeSpinner param, AxoObjectInstance axoObj1) {
+    public AttributeInstanceSpinner(AxoAttribute param, AxoObjectInstance axoObj1) {
         super(param, axoObj1);
-        this.axoObj = axoObj1;
-        value = attr.getDefaultValue();
+        value = ((AxoAttributeSpinner) attr).getDefaultValue();
     }
 
     @Override
     public void PostConstructor() {
         super.PostConstructor();
-        if (value < attr.getMinValue()) {
-            value = attr.getMinValue();
+        AxoAttributeSpinner attrs = (AxoAttributeSpinner) attr;
+        if (value < attrs.getMinValue()) {
+            value = attrs.getMinValue();
         }
-        if (value > attr.getMaxValue()) {
-            value = attr.getMaxValue();
+        if (value > attrs.getMaxValue()) {
+            value = attrs.getMaxValue();
         }
-        spinner = new NumberBoxComponent(value, attr.getMinValue(), attr.getMaxValue(), 1.0);
-        spinner.setParentAxoObjectInstance(this.axoObj);
+        spinner = new NumberBoxComponent(value, attrs.getMinValue(), attrs.getMaxValue(), 1.0);
         add(spinner);
         spinner.addACtrlListener(new ACtrlListener() {
             @Override

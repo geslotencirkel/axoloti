@@ -20,6 +20,7 @@ package generatedobjects;
 import axoloti.attributedefinition.AxoAttributeTextEditor;
 import axoloti.object.AxoObject;
 import axoloti.outlets.OutletFrac32;
+import static generatedobjects.gentools.WriteAxoObject;
 
 /**
  *

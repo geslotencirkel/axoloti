@@ -37,9 +37,7 @@ public class ParameterInstanceInt32BoxSmall extends ParameterInstanceInt32Box {
 
     @Override
     public NumberBoxComponent CreateControl() {
-        NumberBoxComponent n = new NumberBoxComponent(0.0, min, max, 1.0, 12, 12);
-        n.setParentAxoObjectInstance(axoObj);
-        return n;
+        return new NumberBoxComponent(0.0, min, max, 1.0, 12, 12);
     }
 
 }

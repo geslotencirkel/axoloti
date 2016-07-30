@@ -46,11 +46,4 @@ public class ParameterFrac32UMapVSlider extends ParameterFrac32 {
     public ParameterInstance InstanceFactory() {
         return new ParameterInstanceFrac32UMapVSlider();
     }
-
-    static public final String TypeName = "frac32.u.mapvsl";
-
-    @Override
-    public String getTypeName() {
-        return TypeName;
-    }
 }

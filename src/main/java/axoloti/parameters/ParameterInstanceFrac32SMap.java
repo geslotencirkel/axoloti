@@ -17,13 +17,15 @@
  */
 package axoloti.parameters;
 
+import axoloti.Modulation;
+import axoloti.Modulator;
 import org.simpleframework.xml.Attribute;
 
 /**
  *
  * @author Johannes Taelman
  */
-public class ParameterInstanceFrac32SMap extends ParameterInstanceFrac32UMap<ParameterFrac32UMap> {
+public class ParameterInstanceFrac32SMap extends ParameterInstanceFrac32UMap {
 
     public ParameterInstanceFrac32SMap() {
         super();
@@ -71,6 +73,18 @@ public class ParameterInstanceFrac32SMap extends ParameterInstanceFrac32UMap<Par
                 + " -1<<27,"
                 + " 1<<27);\n"
                 + "  KVP_RegisterObject(&" + StructAccces + KVPName(vprefix) + ");\n";
+        if (modulators != null) {
+            for (Modulation m : modulators) {
+                Modulator mod = axoObj.patch.GetModulatorOfModulation(m);
+                if (mod == null) {
+                    System.out.println("modulator not found");
+                    continue;
+                }
+                int modulation_index = mod.Modulations.indexOf(m);
+                s += "  parent->PExModulationSources[parent->" + mod.getCName() + "][" + modulation_index + "].parameterIndex = " + indexName() + ";\n";
+                s += "  parent->PExModulationSources[parent->" + mod.getCName() + "][" + modulation_index + "].amount = " + m.getValue().getRaw() + ";\n";
+            }
+        }
         return s;
     }
 

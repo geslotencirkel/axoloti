@@ -17,7 +17,6 @@
  */
 package components;
 
-import axoloti.Theme;
 import axoloti.datatypes.SignalMetaData;
 import static axoloti.datatypes.SignalMetaData.bipolar;
 import java.awt.BasicStroke;
@@ -42,7 +41,6 @@ public class SignalMetaDataIcon extends JComponent {
         setMinimumSize(d);
         setMaximumSize(d);
         setPreferredSize(d);
-        setBackground(Theme.getCurrentTheme().Object_Default_Background);
     }
     private final int x1 = 2;
     private final int x2 = 5;

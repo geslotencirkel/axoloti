@@ -17,6 +17,7 @@
  */
 package axoloti.parameters;
 
+import axoloti.datatypes.Int32;
 import axoloti.datatypes.ValueInt32;
 import java.security.MessageDigest;
 import org.simpleframework.xml.Element;
@@ -25,16 +26,14 @@ import org.simpleframework.xml.Element;
  *
  * @author Johannes Taelman
  */
-public class ParameterInt32Box extends Parameter<ParameterInstanceInt32Box> {
+public class ParameterInt32Box extends Parameter<Int32> {
 
     @Element
-    public ValueInt32 MinValue;
+    ValueInt32 MinValue;
     @Element
-    public ValueInt32 MaxValue;
+    ValueInt32 MaxValue;
 
     public ParameterInt32Box() {
-        this.MinValue = new ValueInt32(0);
-        this.MaxValue = new ValueInt32(0);
     }
 
     public ParameterInt32Box(String name, int MinValue, int MaxValue) {
@@ -44,7 +43,7 @@ public class ParameterInt32Box extends Parameter<ParameterInstanceInt32Box> {
     }
 
     @Override
-    public ParameterInstanceInt32Box InstanceFactory() {
+    public ParameterInstance InstanceFactory() {
         ParameterInstanceInt32Box b = new ParameterInstanceInt32Box();
         b.min = MinValue.getInt();
         b.max = MaxValue.getInt();
@@ -55,12 +54,5 @@ public class ParameterInt32Box extends Parameter<ParameterInstanceInt32Box> {
     public void updateSHA(MessageDigest md) {
         super.updateSHA(md);
         md.update("int32.dial".getBytes());
-    }
-
-    static public final String TypeName = "int32";
-
-    @Override
-    public String getTypeName() {
-        return TypeName;
     }
 }

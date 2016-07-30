@@ -16,7 +16,6 @@
  * Axoloti. If not, see <http://www.gnu.org/licenses/>.
  */package axoloti.datatypes;
 
-import axoloti.Theme;
 import java.awt.Color;
 
 /**
@@ -44,7 +43,7 @@ public class Int8Ptr implements DataType {
 
     @Override
     public Color GetColor() {
-        return Theme.getCurrentTheme().Cable_Int8Pointer;
+        return Color.magenta;
     }
 
     @Override
@@ -78,8 +77,4 @@ public class Int8Ptr implements DataType {
         return true;
     }
 
-    @Override
-    public String UnconnectedSink() {
-        return "";
-    }
 }

@@ -17,11 +17,8 @@
  */
 package axoloti.outlets;
 
-import axoloti.atom.AtomDefinition;
-import axoloti.atom.AtomInstance;
 import axoloti.datatypes.DataType;
 import axoloti.datatypes.SignalMetaData;
-import axoloti.object.AxoObjectInstance;
 import axoloti.utils.CharEscape;
 import java.security.MessageDigest;
 import org.simpleframework.xml.Attribute;
@@ -30,14 +27,13 @@ import org.simpleframework.xml.Attribute;
  *
  * @author Johannes Taelman
  */
-public abstract class Outlet implements AtomDefinition, Cloneable {
+public class Outlet {
 
     @Attribute
-    String name;
+    public String name;
     @Attribute(required = false)
     public String description;
-    @Deprecated
-    @Attribute(required = false)
+    @Deprecated @Attribute(required = false)
     Boolean SumBuffer;
 
     public DataType getDatatype() {
@@ -52,15 +48,10 @@ public abstract class Outlet implements AtomDefinition, Cloneable {
         this.description = description;
     }
 
-    @Override
-    public String toString() {
-        return getTypeName();
-    }
-
     public String GetCName() {
         return "outlet_" + CharEscape.CharEscape(name);
-    }
-
+    }   
+    
     SignalMetaData GetSignalMetaData() {
         return SignalMetaData.none;
     }
@@ -68,35 +59,5 @@ public abstract class Outlet implements AtomDefinition, Cloneable {
     public void updateSHA(MessageDigest md) {
         md.update(name.getBytes());
         md.update((byte) getDatatype().hashCode());
-    }
-
-    @Override
-    public String getName() {
-        return name;
-    }
-
-    @Override
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    @Override
-    public String getDescription() {
-        return description;
-    }
-
-    @Override
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    @Override
-    public AtomInstance CreateInstance(AxoObjectInstance o) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    @Override
-    public Outlet clone() throws CloneNotSupportedException {
-        return (Outlet) super.clone();
     }
 }

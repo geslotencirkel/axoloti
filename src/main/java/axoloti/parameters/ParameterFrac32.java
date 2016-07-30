@@ -17,6 +17,7 @@
  */
 package axoloti.parameters;
 
+import axoloti.datatypes.Frac32;
 import axoloti.datatypes.ValueFrac32;
 import org.simpleframework.xml.Element;
 
@@ -24,7 +25,7 @@ import org.simpleframework.xml.Element;
  *
  * @author Johannes Taelman
  */
-public abstract class ParameterFrac32<T extends ParameterInstanceFrac32> extends Parameter<T> {
+public abstract class ParameterFrac32 extends Parameter<Frac32> {
 
     @Element(required = false)
     public ValueFrac32 DefaultValue;
@@ -36,9 +37,4 @@ public abstract class ParameterFrac32<T extends ParameterInstanceFrac32> extends
         super(name);
     }
 
-    public ParameterFrac32(String name, ValueFrac32 DefaultValue) {
-        super(name);
-        this.DefaultValue = DefaultValue;
-    }
-    
 }

@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2013 - 2016 Johannes Taelman
+ * Copyright (C) 2013, 2014 Johannes Taelman
  *
  * This file is part of Axoloti.
  *
@@ -17,14 +17,10 @@
  */
 package axoloti.attribute;
 
-import axoloti.SDFileReference;
-import axoloti.Theme;
-import axoloti.atom.AtomInstance;
 import axoloti.attributedefinition.AxoAttribute;
 import axoloti.object.AxoObjectInstance;
 import static axoloti.utils.CharEscape.CharEscape;
 import components.LabelComponent;
-import java.util.ArrayList;
 import javax.swing.BoxLayout;
 import javax.swing.JPanel;
 import org.simpleframework.xml.Attribute;
@@ -33,36 +29,32 @@ import org.simpleframework.xml.Attribute;
  *
  * @author Johannes Taelman
  */
-public abstract class AttributeInstance<T extends AxoAttribute> extends JPanel implements AtomInstance<T> {
+public abstract class AttributeInstance extends JPanel {
 
     @Attribute
-    String attributeName;
-
-    T attr;
-
-    private AxoObjectInstance axoObj;
+    public String attributeName;
+    public AxoAttribute attr;
+    public AxoObjectInstance axoObj;
     LabelComponent lbl;
 
     public AttributeInstance() {
     }
 
-    public AttributeInstance(T attr, AxoObjectInstance axoObj1) {
-        this.attr = attr;
+    public AttributeInstance(AxoAttribute param, AxoObjectInstance axoObj1) {
+        attr = param;
         axoObj = axoObj1;
         attributeName = attr.getName();
     }
 
     public void PostConstructor() {
         setLayout(new BoxLayout(this, BoxLayout.LINE_AXIS));
-        setBackground(Theme.getCurrentTheme().Object_Default_Background);
-        add(new LabelComponent(GetDefinition().getName()));
+        add(new LabelComponent(attr.getName()));
         doLayout();
         setSize(getPreferredSize());
         doLayout();
     }
 
-    @Override
-    public String getName() {
+    public String getAttributeName() {
         return attributeName;
     }
 
@@ -73,22 +65,8 @@ public abstract class AttributeInstance<T extends AxoAttribute> extends JPanel i
     public abstract String CValue();
 
     public abstract void CopyValueFrom(AttributeInstance a1);
-
-    public String GetCName() {
+        
+    public String GetCName(){
         return "attr_" + CharEscape(attributeName);
-    }
-
-    @Override
-    public AxoObjectInstance GetObjectInstance() {
-        return axoObj;
-    }
-
-    @Override
-    public T GetDefinition() {
-        return attr;
-    }
-
-    public ArrayList<SDFileReference> GetDependendSDFiles() {
-        return null;
     }
 }
