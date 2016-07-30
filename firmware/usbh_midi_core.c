@@ -40,6 +40,8 @@
 
 #define _USB_H_
 #include "ch.h"
+#include "hal.h"
+#include "axoloti_board.h"
 
 USB_Setup_TypeDef MIDI_Setup;
 
@@ -55,6 +57,7 @@ typedef struct
 
 
 // very simple ring buffer
+// Note: this should be moved into main midi structure. (hub support will need this) 
 static struct {
     MIDIEvent_t event[RING_BUFFER_SIZE];
     volatile uint8_t read_ptr;
@@ -68,6 +71,10 @@ void usbh_midi_init(void)
     // make no bytes available for output, initialise will reset
     send_ring_buffer.read_ptr  = 0;
     send_ring_buffer.write_ptr = RING_BUFFER_SIZE - 1;
+}
+
+void usbh_midi_reset_buffer(void) {
+    send_ring_buffer.read_ptr = send_ring_buffer.write_ptr = 0;
 }
 
 
@@ -220,13 +227,6 @@ int  usbh_MidiGetOutputBufferAvailable(void) {
 
 /****************** MIDI interface ****************************/
 
-static USBH_StatusTypeDef USBH_MIDI_InterfaceInit  (USBH_HandleTypeDef *phost);
-static USBH_StatusTypeDef USBH_MIDI_InterfaceDeInit  (USBH_HandleTypeDef *phost);
-static USBH_StatusTypeDef USBH_MIDI_ClassRequest(USBH_HandleTypeDef *phost);
-static USBH_StatusTypeDef USBH_MIDI_Process(USBH_HandleTypeDef *phost);
-static USBH_StatusTypeDef USBH_MIDI_SOFProcess(USBH_HandleTypeDef *phost);
-
-
 USBH_ClassTypeDef  MIDI_Class = {
   "MID",
   USB_AUDIO_CLASS,
@@ -239,15 +239,16 @@ USBH_ClassTypeDef  MIDI_Class = {
 };
 
 
-inline bool isValidInput(MIDI_HandleTypeDef* pH)
-{
+bool isValidInput(MIDI_HandleTypeDef* pH)
+{           
     return pH!= NULL && pH->input_valid;
-}
-
-inline bool isValidOutput(MIDI_HandleTypeDef* pH)
-{
+}           
+            
+bool isValidOutput(MIDI_HandleTypeDef* pH)
+{           
     return pH!= NULL && pH->output_valid;
 }
+
 
 /*-----------------------------------------------------------------------------------------*/
 /**
@@ -257,13 +258,14 @@ inline bool isValidOutput(MIDI_HandleTypeDef* pH)
  * @param  hdev: Selected device property
  * @retval  USBH_Status :Response for USB MIDI driver intialization
  */
-static USBH_StatusTypeDef USBH_MIDI_InterfaceInit(USBH_HandleTypeDef *phost) {
+USBH_StatusTypeDef USBH_MIDI_InterfaceInit(USBH_HandleTypeDef *phost) {
 
     USBH_StatusTypeDef status = USBH_FAIL;
     MIDI_HandleTypeDef *MIDI_Handle;
 
     uint8_t interface;
-    send_ring_buffer.read_ptr = send_ring_buffer.write_ptr = 0;
+    usbh_midi_init();
+//    sysmon_disable_blinker();
 
     // this is limited to one midi interface, and also currently only 1 input and 1 output endpoint on that interface
     
@@ -292,26 +294,25 @@ static USBH_StatusTypeDef USBH_MIDI_InterfaceInit(USBH_HandleTypeDef *phost) {
 
             uint8_t i=0;
             for (; i< num_ep && (!isValidInput(MIDI_Handle) || !isValidOutput(MIDI_Handle)) ; i++) {
-                
-                if(!isValidInput(MIDI_Handle) && phost->device.CfgDesc.Itf_Desc[phost->device.current_interface].Ep_Desc[i].bEndpointAddress & 0x80) {
+                bool bInput = phost->device.CfgDesc.Itf_Desc[phost->device.current_interface].Ep_Desc[i].bEndpointAddress & 0x80;
+                if(!isValidInput(MIDI_Handle) && bInput) {
                     MIDI_Handle->InEp = phost->device.CfgDesc.Itf_Desc[phost->device.current_interface].Ep_Desc[i].bEndpointAddress;
                     MIDI_Handle->InEpSize  = phost->device.CfgDesc.Itf_Desc[phost->device.current_interface].Ep_Desc[i].wMaxPacketSize;
                 	USBH_UsrLog("USB Host Input size requests : %x", MIDI_Handle->InEpSize );
-                    if(MIDI_Handle->InEpSize >USBH_MIDI_EPS_IN_SIZE) MIDI_Handle->InEpSize = USBH_MIDI_EPS_IN_SIZE;
-                    MIDI_Handle->read_poll = phost->device.CfgDesc.Itf_Desc[phost->device.current_interface].Ep_Desc[i].bInterval;
-                	USBH_UsrLog("USB Host Input interval : %i", MIDI_Handle->read_poll);
-                    if(MIDI_Handle->read_poll<MIDI_MIN_READ_POLL) MIDI_Handle->read_poll = MIDI_MIN_READ_POLL;
+                    MIDI_Handle->InEpSize = USBH_MIDI_EPS_IN_SIZE; // why bother reducing the size? Some devices will lie about the max ep size...
+//                    MIDI_Handle->read_poll = phost->device.CfgDesc.Itf_Desc[phost->device.current_interface].Ep_Desc[i].bInterval;
+//                	USBH_UsrLog("USB Host Input interval : %i", MIDI_Handle->read_poll);
+//                    if(MIDI_Handle->read_poll<MIDI_MIN_READ_POLL) MIDI_Handle->read_poll = MIDI_MIN_READ_POLL;
                     MIDI_Handle->input_valid = true;
                 }
-                if(!isValidOutput(MIDI_Handle) && phost->device.CfgDesc.Itf_Desc[phost->device.current_interface].Ep_Desc[i].bEndpointAddress)
-                {
+                if(!isValidOutput(MIDI_Handle) && !bInput) {
                     MIDI_Handle->OutEp = phost->device.CfgDesc.Itf_Desc[phost->device.current_interface].Ep_Desc[i].bEndpointAddress;
                     MIDI_Handle->OutEpSize  = phost->device.CfgDesc.Itf_Desc[phost->device.current_interface].Ep_Desc[i].wMaxPacketSize;
                 	USBH_UsrLog("USB Host Output size requests : %x", MIDI_Handle->OutEpSize );
-                    if(MIDI_Handle->OutEpSize >USBH_MIDI_EPS_IN_SIZE) MIDI_Handle->OutEpSize = USBH_MIDI_EPS_OUT_SIZE;
-                    MIDI_Handle->write_poll = phost->device.CfgDesc.Itf_Desc[phost->device.current_interface].Ep_Desc[i].bInterval;
-                	USBH_UsrLog("USB Host Output interval : %i", MIDI_Handle->write_poll);
-                    if(MIDI_Handle->write_poll<MIDI_MIN_WRITE_POLL) MIDI_Handle->write_poll = MIDI_MIN_WRITE_POLL;
+                    if(MIDI_Handle->OutEpSize >USBH_MIDI_EPS_OUT_SIZE) MIDI_Handle->OutEpSize = USBH_MIDI_EPS_OUT_SIZE;
+//                    MIDI_Handle->write_poll = phost->device.CfgDesc.Itf_Desc[phost->device.current_interface].Ep_Desc[i].bInterval;
+//                	USBH_UsrLog("USB Host Output interval : %i", MIDI_Handle->write_poll);
+//                    if(MIDI_Handle->write_poll<MIDI_MIN_WRITE_POLL) MIDI_Handle->write_poll = MIDI_MIN_WRITE_POLL;
                     MIDI_Handle->output_valid = true;
                 }
                 
@@ -331,6 +332,9 @@ static USBH_StatusTypeDef USBH_MIDI_InterfaceInit(USBH_HandleTypeDef *phost) {
                                 USB_EP_TYPE_BULK,
                                 MIDI_Handle->OutEpSize);
                 USBH_LL_SetToggle  (phost, MIDI_Handle->OutPipe,0);
+
+                // ring buffer ready to use
+                usbh_midi_reset_buffer();
             }
             
             if (isValidInput(MIDI_Handle)) {
@@ -348,8 +352,6 @@ static USBH_StatusTypeDef USBH_MIDI_InterfaceInit(USBH_HandleTypeDef *phost) {
             }
             status = USBH_OK;
 
-            // ring buffer ready to use
-            send_ring_buffer.read_ptr  = send_ring_buffer.write_ptr = 0;
 
             return status;
         } // if, a midi interface
@@ -405,7 +407,7 @@ USBH_StatusTypeDef USBH_MIDI_InterfaceDeInit  (__attribute__((__unused__))  USBH
  * @param  hdev: Selected device property
  * @retval  USBH_Status :Response for USB Set Protocol request
  */
-static USBH_StatusTypeDef USBH_MIDI_ClassRequest(__attribute__((__unused__))  USBH_HandleTypeDef *phost) {
+USBH_StatusTypeDef USBH_MIDI_ClassRequest(__attribute__((__unused__))  USBH_HandleTypeDef *phost) {
     USBH_StatusTypeDef status = USBH_OK;
 
     return status;
@@ -421,7 +423,7 @@ static USBH_StatusTypeDef USBH_MIDI_ClassRequest(__attribute__((__unused__))  US
  */
 
 
-static USBH_StatusTypeDef USBH_MIDI_ProcessInput(USBH_HandleTypeDef *phost) {
+USBH_StatusTypeDef USBH_MIDI_ProcessInput(USBH_HandleTypeDef *phost) {
     USBH_StatusTypeDef status = USBH_OK;
     MIDI_HandleTypeDef *MIDI_Handle = phost->pActiveClass->pData;
 
@@ -435,15 +437,14 @@ static USBH_StatusTypeDef USBH_MIDI_ProcessInput(USBH_HandleTypeDef *phost) {
     switch (MIDI_Handle->state_in) {
         case MIDI_INIT:
             MIDI_Handle->state_in = MIDI_GET_DATA;
-            MIDI_Handle->read_timer = phost->Timer;
             break;
 
         case MIDI_GET_DATA:
             if (URB_state_in == USBH_URB_STALL) {
-                USBH_DbgLog("USB Host Input,GD  URB STALL");
+                USBH_ErrLog("USB Host Input,GD  URB STALL");
                 USBH_ClrFeature(phost, MIDI_Handle->InEp);
             } else if (URB_state_in == USBH_URB_ERROR) {
-                USBH_DbgLog("USB Host Input,GD  URB ERROR");
+                USBH_ErrLog("USB Host Input,GD  URB ERROR");
                 USBH_ClrFeature(phost, MIDI_Handle->InEp);
             }
 
@@ -452,6 +453,7 @@ static USBH_StatusTypeDef USBH_MIDI_ProcessInput(USBH_HandleTypeDef *phost) {
             //STM_EVAL_LEDOn(LED_Blue);
             break; 
 
+        case MIDI_RETRY:
         case MIDI_POLL:
             if (URB_state_in == USBH_URB_DONE) {
                 // USBH_DbgLog("USB Host Input  URB DONE");
@@ -459,20 +461,54 @@ static USBH_StatusTypeDef USBH_MIDI_ProcessInput(USBH_HandleTypeDef *phost) {
                 
                 int n = USBH_LL_GetLastXferSize(phost, MIDI_Handle->InPipe);
                 for (i=0; i<n; i+=4) {
-                    MIDI_CB(MIDI_Handle->buff_in[0+i],MIDI_Handle->buff_in[1+i],MIDI_Handle->buff_in[2+i],MIDI_Handle->buff_in[3+i]);
+                    if (MIDI_Handle->buff_in[0+i]) {
+                        MIDI_CB(MIDI_Handle->buff_in[0+i],MIDI_Handle->buff_in[1+i],MIDI_Handle->buff_in[2+i],MIDI_Handle->buff_in[3+i]);
                 //	USBH_DbgLog("USB Host Input recv data : %x, %x, %x %x",
 				//				MIDI_Handle->buff_in[0+i],MIDI_Handle->buff_in[1+i],MIDI_Handle->buff_in[2+i],MIDI_Handle->buff_in[3+i]);
+                    }
                 }
-                    
-                MIDI_Handle->buff_in[1] = 0;
-                // MIDI_Handle->state_in = MIDI_IDLE;
-                MIDI_Handle->read_timer = phost->Timer;
+                MIDI_Handle->state_in = MIDI_POLL;
+                URB_state_in = USBH_LL_GetURBState(phost, MIDI_Handle->InPipe);
+                if (URB_state_in != USBH_URB_DONE) {
+                  USBH_ErrLog("URB0 Not done %d",URB_state_in);
+                }
+                USBH_BulkReceiveData(phost, MIDI_Handle->buff_in, MIDI_Handle->InEpSize, MIDI_Handle->InPipe);
+                if (URB_state_in != USBH_URB_DONE) {
+                  USBH_ErrLog("URB1 Not done %d",URB_state_in);
+                }
             } else if (URB_state_in == USBH_URB_STALL) {
-                USBH_ErrLog("USB Host Input,POLL  URB STALL");
+                USBH_ErrLog("USB Host Input,POLL  URB STALL 2");
                 if (USBH_ClrFeature(phost, MIDI_Handle->InEp) == USBH_OK) {
                     MIDI_Handle->state_in = MIDI_GET_DATA;
                 }
-            } // if STALL
+            } else {
+              if (URB_state_in == USBH_URB_IDLE) {
+#if 1
+                //USBH_ErrLog("URB state? %d",URB_state_in);
+//                palTogglePad(LED2_PORT,LED2_PIN);
+//                if (USBH_ClrFeature(phost, MIDI_Handle->InEp) == USBH_OK) {
+//                    //MIDI_Handle->state_in = MIDI_GET_DATA;
+//                }
+
+                int i;
+
+                int n = USBH_LL_GetLastXferSize(phost, MIDI_Handle->InPipe);
+                for (i=0; i<n; i+=4) {
+                    if (MIDI_Handle->buff_in[0+i]) {
+                        MIDI_CB(MIDI_Handle->buff_in[0+i],MIDI_Handle->buff_in[1+i],MIDI_Handle->buff_in[2+i],MIDI_Handle->buff_in[3+i]);
+                //  USBH_DbgLog("USB Host Input recv data : %x, %x, %x %x",
+                //              MIDI_Handle->buff_in[0+i],MIDI_Handle->buff_in[1+i],MIDI_Handle->buff_in[2+i],MIDI_Handle->buff_in[3+i]);
+                    }
+                }
+
+
+                USBH_BulkReceiveData(phost, MIDI_Handle->buff_in, MIDI_Handle->InEpSize, MIDI_Handle->InPipe);
+                MIDI_Handle->state_in = MIDI_RETRY; // hanging notes when using MIDI_POLL...
+#endif
+              } else {
+                USBH_DbgLog("URB Host Input state? %d",URB_state_in);
+              }
+            }
             break;
 
         default:
@@ -483,9 +519,9 @@ static USBH_StatusTypeDef USBH_MIDI_ProcessInput(USBH_HandleTypeDef *phost) {
 }
 
 // PING = 1 for HS, apparently ,but 0 or 1 makes no difference
-#define SEND_DATA_DO_PING 1
+#define SEND_DATA_DO_PING 0
 
-static USBH_StatusTypeDef USBH_MIDI_ProcessOutput(USBH_HandleTypeDef *phost) {
+USBH_StatusTypeDef USBH_MIDI_ProcessOutput(USBH_HandleTypeDef *phost) {
     USBH_StatusTypeDef status = USBH_OK;
     MIDI_HandleTypeDef *MIDI_Handle = phost->pActiveClass->pData;
 
@@ -499,72 +535,47 @@ static USBH_StatusTypeDef USBH_MIDI_ProcessOutput(USBH_HandleTypeDef *phost) {
     switch (MIDI_Handle->state_out) {
         case MIDI_INIT:
             MIDI_Handle->state_out = MIDI_SEND_DATA;
-            MIDI_Handle->write_timer = phost->Timer;
             break;
-            
-        case MIDI_SEND_DATA:
-            if (URB_state_out == USBH_URB_STALL) {
-                USBH_ErrLog("USB Host Output(SD) STALL");
-                USBH_ClrFeature(phost, MIDI_Handle->OutEp);
-            } else if (URB_state_out == USBH_URB_ERROR) {
-                USBH_ErrLog("USB Host Output(SD) ERROR");
-                USBH_ClrFeature(phost, MIDI_Handle->OutEp);
-            }
-            if (( phost->Timer - MIDI_Handle->write_timer) >= MIDI_Handle->write_poll
-                    || phost->Timer < MIDI_Handle->write_timer) {
-                if (send_ring_buffer.read_ptr != send_ring_buffer.write_ptr) {
-                    MIDI_Handle->buff_out_len = 0;
-                    while (send_ring_buffer.read_ptr != send_ring_buffer.write_ptr 
-                            && MIDI_Handle->buff_out_len + 4 <= MIDI_Handle->OutEpSize ) {
 
-                            send_ring_buffer.read_ptr =(send_ring_buffer.read_ptr + 1) % RING_BUFFER_SIZE;
-                            USBH_DbgLog("USB Host Output sending data @ %i", send_ring_buffer.read_ptr  );
 
-#if 0
-                            USBH_DbgLog("USB Host Output sending data : %x, %x, %x %x",
-                                        send_ring_buffer.event[send_ring_buffer.read_ptr].data[0],
-                                        send_ring_buffer.event[send_ring_buffer.read_ptr].data[1],
-                                        send_ring_buffer.event[send_ring_buffer.read_ptr].data[2],
-                                        send_ring_buffer.event[send_ring_buffer.read_ptr].data[3]);
-#endif
-                            
-                            MIDI_Handle->buff_out[MIDI_Handle->buff_out_len + 0] =  send_ring_buffer.event[send_ring_buffer.read_ptr].data[0];
-                            MIDI_Handle->buff_out[MIDI_Handle->buff_out_len + 1] =  send_ring_buffer.event[send_ring_buffer.read_ptr].data[1];
-                            MIDI_Handle->buff_out[MIDI_Handle->buff_out_len + 2] =  send_ring_buffer.event[send_ring_buffer.read_ptr].data[2];
-                            MIDI_Handle->buff_out[MIDI_Handle->buff_out_len + 3] =  send_ring_buffer.event[send_ring_buffer.read_ptr].data[3];
-                            MIDI_Handle->buff_out_len += 4;
-                    }
-                    
-                    USBH_BulkSendData(phost, MIDI_Handle->buff_out, MIDI_Handle->buff_out_len, MIDI_Handle->OutPipe, SEND_DATA_DO_PING);
-                    USBH_DbgLog("USB Host Output sent bytes : %i", MIDI_Handle->buff_out_len);
-                    
-                    // now poll for completion
-                    MIDI_Handle->state_out = MIDI_POLL;
-                }
-            }
-            break;
-            
         case MIDI_POLL:
             if(URB_state_out == USBH_URB_DONE) {
-				MIDI_Handle->buff_out_len = 0;
+                MIDI_Handle->buff_out_len = 0;
                 MIDI_Handle->state_out = MIDI_SEND_DATA;
                 USBH_DbgLog("USB Host Output URB DONE");
-                MIDI_Handle->write_timer = phost->Timer;
             }
             else if(URB_state_out == USBH_URB_NOTREADY) {
                 USBH_ErrLog("USB Host Output NOT READY");
                 // send again
                 USBH_BulkSendData(phost, MIDI_Handle->buff_out, MIDI_Handle->buff_out_len, MIDI_Handle->OutPipe, SEND_DATA_DO_PING);
                 MIDI_Handle->state_out = MIDI_POLL;
+                break;
             } else if (URB_state_out == USBH_URB_IDLE) {
+//                MIDI_Handle->state_out = MIDI_SEND_DATA;
+//                osMessagePutI ( phost->os_event, USBH_URB_EVENT, 0);
+
+//              USBH_BulkSendData(phost, MIDI_Handle->buff_out, MIDI_Handle->buff_out_len, MIDI_Handle->OutPipe, SEND_DATA_DO_PING);
+//              MIDI_Handle->state_out = MIDI_POLL;
+ //             osMessagePutI ( phost->os_event, USBH_URB_EVENT, 0);
+/*
+              if (USBH_ClrFeature(phost, MIDI_Handle->OutEp) == USBH_OK) {
+                USBH_ErrLog("USB Idle1");
+              }
+              else {
+                USBH_ErrLog("USB Idle2");
+              }*/
+
+              MIDI_Handle->state_out = MIDI_RETRY;
+              break;
                 // wait
-                USBH_DbgLog("USB Host Output IDLE %i " ,MIDI_Handle->buff_out_len);
+                //USBH_DbgLog("USB Host Output IDLE %i " ,MIDI_Handle->buff_out_len);
                 ; // NOP
             } else if (URB_state_out == USBH_URB_ERROR) {
                 // giveup
                 USBH_ErrLog("USB Host Output Error sending data");
                 MIDI_Handle->state_out = MIDI_SEND_DATA;
-				MIDI_Handle->buff_out_len = 0;
+                MIDI_Handle->buff_out_len = 0;
+                break;
             } else if (URB_state_out == USBH_URB_STALL) {
                 // stalled, reset ep
                 if (USBH_ClrFeature(phost, MIDI_Handle->OutEp) == USBH_OK) {
@@ -574,15 +585,65 @@ static USBH_StatusTypeDef USBH_MIDI_ProcessOutput(USBH_HandleTypeDef *phost) {
                 else {
                     USBH_ErrLog("USB Host Output  write pipe stalled unable to clear");
                     MIDI_Handle->state_out = MIDI_SEND_DATA;
-					MIDI_Handle->buff_out_len = 0;
+                    MIDI_Handle->buff_out_len = 0;
                 }
+                break;
             } else {
                 // giveup
                 USBH_ErrLog("USB Host Output  unknown state sending data %x ", URB_state_out);
                 MIDI_Handle->state_out = MIDI_SEND_DATA;
-				MIDI_Handle->buff_out_len = 0;
+                MIDI_Handle->buff_out_len = 0;
+                break;
+            }
+            
+        case MIDI_SEND_DATA:
+            if (URB_state_out == USBH_URB_STALL) {
+                USBH_ErrLog("USB Host Output(SD) STALL");
+                USBH_ClrFeature(phost, MIDI_Handle->OutEp);
+            } else if (URB_state_out == USBH_URB_ERROR) {
+                USBH_ErrLog("USB Host Output(SD) ERROR");
+                USBH_ClrFeature(phost, MIDI_Handle->OutEp);
+            }
+            if (send_ring_buffer.read_ptr != send_ring_buffer.write_ptr) {
+                MIDI_Handle->buff_out_len = 0;
+                while (send_ring_buffer.read_ptr != send_ring_buffer.write_ptr
+                        && MIDI_Handle->buff_out_len + 4 <= MIDI_Handle->OutEpSize ) {
+
+                        send_ring_buffer.read_ptr =(send_ring_buffer.read_ptr + 1) % RING_BUFFER_SIZE;
+                        USBH_DbgLog("USB Host Output sending data @ %i", send_ring_buffer.read_ptr  );
+
+#if 0
+                        USBH_DbgLog("USB Host Output sending data : %x, %x, %x %x",
+                                    send_ring_buffer.event[send_ring_buffer.read_ptr].data[0],
+                                    send_ring_buffer.event[send_ring_buffer.read_ptr].data[1],
+                                    send_ring_buffer.event[send_ring_buffer.read_ptr].data[2],
+                                    send_ring_buffer.event[send_ring_buffer.read_ptr].data[3]);
+#endif
+
+                        MIDI_Handle->buff_out[MIDI_Handle->buff_out_len + 0] =  send_ring_buffer.event[send_ring_buffer.read_ptr].data[0];
+                        MIDI_Handle->buff_out[MIDI_Handle->buff_out_len + 1] =  send_ring_buffer.event[send_ring_buffer.read_ptr].data[1];
+                        MIDI_Handle->buff_out[MIDI_Handle->buff_out_len + 2] =  send_ring_buffer.event[send_ring_buffer.read_ptr].data[2];
+                        MIDI_Handle->buff_out[MIDI_Handle->buff_out_len + 3] =  send_ring_buffer.event[send_ring_buffer.read_ptr].data[3];
+                        MIDI_Handle->buff_out_len += 4;
+                }
+
+                USBH_BulkSendData(phost, MIDI_Handle->buff_out, MIDI_Handle->buff_out_len, MIDI_Handle->OutPipe, SEND_DATA_DO_PING);
+                USBH_DbgLog("USB Host Output sent bytes : %i", MIDI_Handle->buff_out_len);
+
+                // now poll for completion
+                MIDI_Handle->state_out = MIDI_POLL;
             }
             break;
+
+        case MIDI_RETRY:
+          USBH_BulkSendData(phost, MIDI_Handle->buff_out, MIDI_Handle->buff_out_len, MIDI_Handle->OutPipe, SEND_DATA_DO_PING);
+          USBH_DbgLog("USB Host Output sent bytes : %i", MIDI_Handle->buff_out_len);
+
+          // now poll for completion
+          MIDI_Handle->state_out = MIDI_POLL;
+          break;
+
+
             
         default:
             break;
@@ -591,7 +652,7 @@ static USBH_StatusTypeDef USBH_MIDI_ProcessOutput(USBH_HandleTypeDef *phost) {
     return status;
 }
 
-static USBH_StatusTypeDef USBH_MIDI_Process(USBH_HandleTypeDef *phost) {
+USBH_StatusTypeDef USBH_MIDI_Process(USBH_HandleTypeDef *phost) {
     USBH_StatusTypeDef status=USBH_OK;
 
     status =  USBH_MIDI_ProcessInput(phost);
@@ -602,45 +663,31 @@ static USBH_StatusTypeDef USBH_MIDI_Process(USBH_HandleTypeDef *phost) {
 }
 /*-----------------------------------------------------------------------------------------*/
 
-static USBH_StatusTypeDef USBH_MIDI_SOFProcess(USBH_HandleTypeDef *phost) {
+USBH_StatusTypeDef USBH_MIDI_SOFProcess(USBH_HandleTypeDef *phost) {
     MIDI_HandleTypeDef *MIDI_Handle =  (MIDI_HandleTypeDef *) phost->pActiveClass->pData;
 
     if (!isValidInput(MIDI_Handle) && !isValidOutput(MIDI_Handle)) {
         USBH_UsrLog("USBH_MIDI_SOFProcess : invalid input/output");
         return USBH_OK; //?
     }
-    
-    // note: phost->Timer can overflow, as its a uint32
-    if (MIDI_Handle->state_in == MIDI_POLL) {
-        if (( phost->Timer - MIDI_Handle->read_timer) >= MIDI_Handle->read_poll 
-              || phost->Timer < MIDI_Handle->read_timer)  {
-            // regulalry send a data request (READ)
-            MIDI_Handle->state_in = MIDI_GET_DATA;
-            #if (USBH_USE_OS == 1)
-            osMessagePutI ( phost->os_event, USBH_URB_EVENT, 0);
-            #endif
-        }
+//    palTogglePad(LED1_PORT,LED1_PIN);
 
-#if 0 // MH I dont think this is necessary, I added as a 'just in case'
-    } else if (MIDI_Handle->state_out == MIDI_POLL) {
-        if(( phost->Timer - MIDI_Handle->timer) >= MIDI_Handle->write_poll) {
-            #if (USBH_USE_OS == 1)
-            osMessagePutI ( phost->os_event, USBH_URB_EVENT, 0);
-            #endif
-        }
-#endif 
-    } else if (MIDI_Handle->state_out == MIDI_SEND_DATA) {
+    if (MIDI_Handle->state_out == MIDI_SEND_DATA) {
         
-        if (( phost->Timer - MIDI_Handle->write_timer) >= MIDI_Handle->write_poll
-              || phost->Timer < MIDI_Handle->write_timer) {
+//        if (( phost->Timer - MIDI_Handle->write_timer) >= MIDI_Handle->write_poll
+//              || phost->Timer < MIDI_Handle->write_timer) {
             if (send_ring_buffer.read_ptr != send_ring_buffer.write_ptr) {
                 // ready to send more data, and we have data to send
                 #if (USBH_USE_OS == 1)
                 osMessagePutI ( phost->os_event, USBH_URB_EVENT, 0);
                 #endif
             }
-        }
+//        }
+    } else if ((MIDI_Handle->state_out == MIDI_RETRY)||
+        (MIDI_Handle->state_in == MIDI_RETRY)) {
+      #if (USBH_USE_OS == 1)
+      osMessagePutI ( phost->os_event, USBH_URB_EVENT, 0);
+      #endif
     }
-
     return USBH_OK;
 }

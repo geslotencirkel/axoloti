@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2013, 2014, 2015 Johannes Taelman
+ * Copyright (C) 2013 - 2016 Johannes Taelman
  *
  * This file is part of Axoloti.
  *
@@ -17,10 +17,14 @@
  */
 package axoloti;
 
-import axoloti.dialogs.AboutFrame;
+import axoloti.object.AxoObjectInstance;
+import axoloti.object.AxoObjectInstanceAbstract;
 import axoloti.object.AxoObjects;
 import axoloti.utils.Constants;
-import java.awt.Desktop;
+import axoloti.utils.KeyUtils;
+import components.PresetPanel;
+import components.VisibleCablePanel;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Point;
 import java.awt.Toolkit;
@@ -35,14 +39,16 @@ import java.awt.event.KeyEvent;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.ImageIcon;
 import javax.swing.JFileChooser;
+import javax.swing.JFrame;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
+import javax.swing.JScrollPane;
 import javax.swing.KeyStroke;
-import javax.swing.filechooser.FileFilter;
 import javax.swing.text.DefaultEditorKit;
 import org.simpleframework.xml.Serializer;
 import org.simpleframework.xml.core.Persister;
@@ -56,36 +62,48 @@ import qcmds.QCmdUploadPatch;
  *
  * @author Johannes Taelman
  */
-public class PatchFrame extends javax.swing.JFrame {
+public class PatchFrame extends javax.swing.JFrame implements DocumentWindow, ConnectionStatusListener {
 
     /**
      * Creates new form PatchFrame
      */
     PatchGUI patch;
 
+    private PresetPanel presetPanel;
+    private VisibleCablePanel visibleCablePanel;
+
     public PatchFrame(final PatchGUI patch, QCmdProcessor qcmdprocessor) {
         setIconImage(new ImageIcon(getClass().getResource("/resources/axoloti_icon.png")).getImage());
         this.qcmdprocessor = qcmdprocessor;
         initComponents();
+        fileMenu1.initComponents();
         this.patch = patch;
         this.patch.patchframe = this;
-        jToolbarPanel.add(new components.PresetPanel(patch));
+        USBBulkConnection.GetConnection().addConnectionStatusListener(this);
+
+        presetPanel = new PresetPanel(patch);
+        visibleCablePanel = new VisibleCablePanel(patch);
+        
+        jToolbarPanel.add(presetPanel);
         jToolbarPanel.add(new javax.swing.Box.Filler(new Dimension(0, 0), new Dimension(0, 0), new Dimension(32767, 32767)));
+        jToolbarPanel.add(visibleCablePanel);
+
         jScrollPane1.setViewportView(patch.Layers);
-        jScrollPane1.getVerticalScrollBar().setUnitIncrement(Constants.ygrid / 2);
-        jScrollPane1.getHorizontalScrollBar().setUnitIncrement(Constants.xgrid / 2);
+        jScrollPane1.getVerticalScrollBar().setUnitIncrement(Constants.Y_GRID / 2);
+        jScrollPane1.getHorizontalScrollBar().setUnitIncrement(Constants.X_GRID / 2);
 
         JMenuItem menuItem = new JMenuItem(new DefaultEditorKit.CutAction());
         menuItem.setText("Cut");
-        menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_X, Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()));
+        menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_X, 
+                KeyUtils.CONTROL_OR_CMD_MASK));
         jMenuEdit.add(menuItem);
         menuItem.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 Patch p = patch.GetSelectedObjects();
-                if (p.objectinstances.isEmpty()) { 
+                if (p.objectinstances.isEmpty()) {
                     getToolkit().getSystemClipboard().setContents(new StringSelection(""), null);
-                    return ;
+                    return;
                 }
                 p.PreSerialize();
                 Serializer serializer = new Persister();
@@ -103,15 +121,16 @@ public class PatchFrame extends javax.swing.JFrame {
         });
         menuItem = new JMenuItem(new DefaultEditorKit.CopyAction());
         menuItem.setText("Copy");
-        menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_C, Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()));
+        menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_C, 
+                KeyUtils.CONTROL_OR_CMD_MASK));
         jMenuEdit.add(menuItem);
         menuItem.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 Patch p = patch.GetSelectedObjects();
-                if (p.objectinstances.isEmpty()) { 
+                if (p.objectinstances.isEmpty()) {
                     getToolkit().getSystemClipboard().setContents(new StringSelection(""), null);
-                    return ;
+                    return;
                 }
                 p.PreSerialize();
                 Serializer serializer = new Persister();
@@ -128,7 +147,8 @@ public class PatchFrame extends javax.swing.JFrame {
         });
         menuItem = new JMenuItem(new DefaultEditorKit.PasteAction());
         menuItem.setText("Paste");
-        menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_V, Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()));
+        menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_V, 
+                KeyUtils.CONTROL_OR_CMD_MASK));
         jMenuEdit.add(menuItem);
         menuItem.addActionListener(new ActionListener() {
             @Override
@@ -144,7 +164,6 @@ public class PatchFrame extends javax.swing.JFrame {
             }
         });
 
-        UpdateConnectStatus();
         if (patch.getWindowPos() != null) {
             setBounds(patch.getWindowPos());
         } else {
@@ -155,34 +174,36 @@ public class PatchFrame extends javax.swing.JFrame {
         if (!MainFrame.prefs.getExpertMode()) {
             jSeparator3.setVisible(false);
             jMenuItemLock.setVisible(false);
+            jMenuGenerateAndCompileCode.setVisible(false);
             jMenuGenerateCode.setVisible(false);
             jMenuCompileCode.setVisible(false);
             jMenuUploadCode.setVisible(false);
             jMenuItemLock.setVisible(false);
             jMenuItemUnlock.setVisible(false);
+            jMenuItemDumpMod.setVisible(false);
         }
         jMenuPreset.setVisible(false);
         jMenuItemAdjScroll.setVisible(false);
         patch.Layers.requestFocus();
-
-        //        jScrollPane1.setAutoscrolls(true);
-        /*
-         patch.setPreferredSize(new Dimension(5000, 5000));
-         jScrollPane1.getViewport().setSize(5000, 5000);
-         patch.setSize(new Dimension(5000, 5000));
-         patch.setMinimumSize(new Dimension(5000, 5000));
-         patch.setBackground(Color.red);
-         patch.invalidate();*/
-    }
-    QCmdProcessor qcmdprocessor;
-
-    public final void UpdateConnectStatus() {
-        if (qcmdprocessor.serialconnection.isConnected()) {
+        if (USBBulkConnection.GetConnection().isConnected()) {
             ShowConnect();
-        } else {
-            ShowDisconnect();
         }
+        
+        this.undoItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Z, 
+                KeyUtils.CONTROL_OR_CMD_MASK));
+        this.redoItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Z, 
+                KeyUtils.CONTROL_OR_CMD_MASK | KeyEvent.SHIFT_DOWN_MASK));
+        this.zoomDefaultMenuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_0, 
+                KeyUtils.CONTROL_OR_CMD_MASK));
+        this.zoomInMenuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS, 
+                KeyUtils.CONTROL_OR_CMD_MASK));
+        this.zoomOutMenuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_MINUS, 
+                KeyUtils.CONTROL_OR_CMD_MASK));
+
+        createBufferStrategy(2);
     }
+
+    QCmdProcessor qcmdprocessor;
 
     public void SetLive(boolean b) {
         if (b) {
@@ -190,14 +211,17 @@ public class PatchFrame extends javax.swing.JFrame {
             jCheckBoxLive.setEnabled(true);
             jCheckBoxMenuItemLive.setSelected(true);
             jCheckBoxMenuItemLive.setEnabled(true);
+            presetPanel.ShowLive(true);
         } else {
             jCheckBoxLive.setSelected(false);
             jCheckBoxLive.setEnabled(true);
             jCheckBoxMenuItemLive.setSelected(false);
             jCheckBoxMenuItemLive.setEnabled(true);
+            presetPanel.ShowLive(false);
         }
     }
 
+    @Override
     public void ShowDisconnect() {
         if (patch.IsLocked()) {
             patch.Unlock();
@@ -208,6 +232,7 @@ public class PatchFrame extends javax.swing.JFrame {
         jCheckBoxMenuItemLive.setSelected(false);
     }
 
+    @Override
     public void ShowConnect() {
         patch.Unlock();
         jCheckBoxLive.setSelected(false);
@@ -222,12 +247,15 @@ public class PatchFrame extends javax.swing.JFrame {
     }
 
     public void Close() {
-        patch.GetMainFrame().patches.remove(patch);
+        DocumentWindowList.UnregisterWindow(this);
+        USBBulkConnection.GetConnection().removeConnectionStatusListener(this);
+        patch.Close();
         dispose();
     }
 
+    @Override
     public boolean AskClose() {
-        if ( patch.isDirty() && patch.container() == null ) {
+        if (patch.isDirty() && patch.container() == null) {
             Object[] options = {"Save",
                 "Don't save",
                 "Cancel"};
@@ -258,6 +286,10 @@ public class PatchFrame extends javax.swing.JFrame {
         }
     }
 
+    public JScrollPane getScrollPane() {
+        return this.jScrollPane1;
+    }
+
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
@@ -275,16 +307,16 @@ public class PatchFrame extends javax.swing.JFrame {
         filler3 = new javax.swing.Box.Filler(new java.awt.Dimension(5, 0), new java.awt.Dimension(5, 0), new java.awt.Dimension(5, 0));
         jScrollPane1 = new javax.swing.JScrollPane();
         jMenuBar1 = new javax.swing.JMenuBar();
-        jMenuFile = new javax.swing.JMenu();
-        jMenuNew = new javax.swing.JMenuItem();
-        jMenuOpen = new javax.swing.JMenuItem();
-        jMenuClose = new javax.swing.JMenuItem();
+        fileMenu1 = new axoloti.menus.FileMenu();
+        jSeparator1 = new javax.swing.JPopupMenu.Separator();
         jMenuSave = new javax.swing.JMenuItem();
         jMenuSaveAs = new javax.swing.JMenuItem();
+        jMenuSaveCopy = new javax.swing.JMenuItem();
         jMenuSaveClip = new javax.swing.JMenuItem();
-        jSeparator1 = new javax.swing.JPopupMenu.Separator();
-        jMenuQuit = new javax.swing.JMenuItem();
+        jMenuClose = new javax.swing.JMenuItem();
         jMenuEdit = new javax.swing.JMenu();
+        undoItem = new javax.swing.JMenuItem();
+        redoItem = new javax.swing.JMenuItem();
         jMenuItemDelete = new javax.swing.JMenuItem();
         jMenuItemSelectAll = new javax.swing.JMenuItem();
         jMenuItemAddObj = new javax.swing.JMenuItem();
@@ -295,27 +327,44 @@ public class PatchFrame extends javax.swing.JFrame {
         jSeparator2 = new javax.swing.JPopupMenu.Separator();
         jCheckBoxMenuItemCordsInBackground = new javax.swing.JCheckBoxMenuItem();
         jMenuItemAdjScroll = new javax.swing.JMenuItem();
+        jSeparator5 = new javax.swing.JPopupMenu.Separator();
+        zoomInMenuItem = new javax.swing.JMenuItem();
+        zoomDefaultMenuItem = new javax.swing.JMenuItem();
+        zoomOutMenuItem = new javax.swing.JMenuItem();
         jMenuPatch = new javax.swing.JMenu();
         jCheckBoxMenuItemLive = new javax.swing.JCheckBoxMenuItem();
         jMenuItemUploadSD = new javax.swing.JMenuItem();
         jMenuItemUploadSDStart = new javax.swing.JMenuItem();
         jMenuItemUploadInternalFlash = new javax.swing.JMenuItem();
         jSeparator3 = new javax.swing.JPopupMenu.Separator();
+        jMenuGenerateAndCompileCode = new javax.swing.JMenuItem();
         jMenuGenerateCode = new javax.swing.JMenuItem();
         jMenuCompileCode = new javax.swing.JMenuItem();
         jMenuUploadCode = new javax.swing.JMenuItem();
         jMenuItemLock = new javax.swing.JMenuItem();
         jMenuItemUnlock = new javax.swing.JMenuItem();
+        jMenuItemDumpMod = new javax.swing.JMenuItem();
         jMenuPreset = new javax.swing.JMenu();
         jMenuItemClearPreset = new javax.swing.JMenuItem();
         jMenuItemPresetCurrentToInit = new javax.swing.JMenuItem();
         jMenuItemDifferenceToPreset = new javax.swing.JMenuItem();
-        jMenuWindow = new javax.swing.JMenu();
-        jMenuHelp = new javax.swing.JMenu();
-        jMenuHelpContents = new javax.swing.JMenuItem();
-        jMenuAbout = new javax.swing.JMenuItem();
+        windowMenu1 = new axoloti.menus.WindowMenu();
+        helpMenu1 = new axoloti.menus.HelpMenu();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DO_NOTHING_ON_CLOSE);
+        addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                formFocusLost(evt);
+            }
+        });
+        addComponentListener(new java.awt.event.ComponentAdapter() {
+            public void componentHidden(java.awt.event.ComponentEvent evt) {
+                formComponentHidden(evt);
+            }
+            public void componentShown(java.awt.event.ComponentEvent evt) {
+                formComponentShown(evt);
+            }
+        });
         addWindowListener(new java.awt.event.WindowAdapter() {
             public void windowClosing(java.awt.event.WindowEvent evt) {
                 formWindowClosing(evt);
@@ -367,303 +416,317 @@ public class PatchFrame extends javax.swing.JFrame {
         jScrollPane1.setAutoscrolls(true);
         getContentPane().add(jScrollPane1);
 
-        jMenuFile.setMnemonic('F');
-        jMenuFile.setText("File");
+        fileMenu1.setText("File");
+        fileMenu1.add(jSeparator1);
 
-        jMenuNew.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_N,
-            Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()));
-    jMenuNew.setText("New");
-    jMenuNew.addActionListener(new java.awt.event.ActionListener() {
-        public void actionPerformed(java.awt.event.ActionEvent evt) {
-            jMenuNewActionPerformed(evt);
-        }
-    });
-    jMenuFile.add(jMenuNew);
+        jMenuSave.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, KeyUtils.CONTROL_OR_CMD_MASK));
+        jMenuSave.setText("Save");
+        jMenuSave.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jMenuSaveActionPerformed(evt);
+            }
+        });
+        fileMenu1.add(jMenuSave);
 
-    jMenuOpen.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O,
-        Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()));
-jMenuOpen.setText("Open...");
-jMenuOpen.addActionListener(new java.awt.event.ActionListener() {
-    public void actionPerformed(java.awt.event.ActionEvent evt) {
-        jMenuOpenActionPerformed(evt);
-    }
-    });
-    jMenuFile.add(jMenuOpen);
+        jMenuSaveAs.setText("Save As...");
+        jMenuSaveAs.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jMenuSaveAsActionPerformed(evt);
+            }
+        });
+        fileMenu1.add(jMenuSaveAs);
 
-    jMenuClose.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_W,
-        Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()));
-jMenuClose.setText("Close");
-jMenuClose.addActionListener(new java.awt.event.ActionListener() {
-    public void actionPerformed(java.awt.event.ActionEvent evt) {
-        jMenuCloseActionPerformed(evt);
-    }
-    });
-    jMenuFile.add(jMenuClose);
+        jMenuSaveCopy.setText("Save Copy...");
+        jMenuSaveCopy.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jMenuSaveCopyActionPerformed(evt);
+            }
+        });
+        fileMenu1.add(jMenuSaveCopy);
 
-    jMenuSave.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S,
-        Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()));
-jMenuSave.setText("Save");
-jMenuSave.addActionListener(new java.awt.event.ActionListener() {
-    public void actionPerformed(java.awt.event.ActionEvent evt) {
-        jMenuSaveActionPerformed(evt);
-    }
-    });
-    jMenuFile.add(jMenuSave);
+        jMenuSaveClip.setText("Save To Clipboard");
+        jMenuSaveClip.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jMenuSaveClipActionPerformed(evt);
+            }
+        });
+        fileMenu1.add(jMenuSaveClip);
 
-    jMenuSaveAs.setText("Save As...");
-    jMenuSaveAs.addActionListener(new java.awt.event.ActionListener() {
-        public void actionPerformed(java.awt.event.ActionEvent evt) {
-            jMenuSaveAsActionPerformed(evt);
-        }
-    });
-    jMenuFile.add(jMenuSaveAs);
+        jMenuClose.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_W, KeyUtils.CONTROL_OR_CMD_MASK));
+        jMenuClose.setText("Close");
+        jMenuClose.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jMenuCloseActionPerformed(evt);
+            }
+        });
+        fileMenu1.add(jMenuClose);
 
-    jMenuSaveClip.setText("Save To Clipboard");
-    jMenuSaveClip.addActionListener(new java.awt.event.ActionListener() {
-        public void actionPerformed(java.awt.event.ActionEvent evt) {
-            jMenuSaveClipActionPerformed(evt);
-        }
-    });
-    jMenuFile.add(jMenuSaveClip);
-    jMenuFile.add(jSeparator1);
+        jMenuBar1.add(fileMenu1);
 
-    jMenuQuit.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Q,
-        Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()));
-jMenuQuit.setText("Quit");
-jMenuQuit.addActionListener(new java.awt.event.ActionListener() {
-    public void actionPerformed(java.awt.event.ActionEvent evt) {
-        jMenuQuitActionPerformed(evt);
-    }
-    });
-    jMenuFile.add(jMenuQuit);
+        jMenuEdit.setMnemonic('E');
+        jMenuEdit.setText("Edit");
 
-    jMenuBar1.add(jMenuFile);
+        undoItem.setText("Undo");
+        undoItem.addAncestorListener(new javax.swing.event.AncestorListener() {
+            public void ancestorMoved(javax.swing.event.AncestorEvent evt) {
+            }
+            public void ancestorAdded(javax.swing.event.AncestorEvent evt) {
+                undoItemAncestorAdded(evt);
+            }
+            public void ancestorRemoved(javax.swing.event.AncestorEvent evt) {
+            }
+        });
+        undoItem.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                undoItemActionPerformed(evt);
+            }
+        });
+        jMenuEdit.add(undoItem);
 
-    jMenuEdit.setMnemonic('E');
-    jMenuEdit.setText("Edit");
+        redoItem.setText("Redo");
+        redoItem.addAncestorListener(new javax.swing.event.AncestorListener() {
+            public void ancestorMoved(javax.swing.event.AncestorEvent evt) {
+            }
+            public void ancestorAdded(javax.swing.event.AncestorEvent evt) {
+                redoItemAncestorAdded(evt);
+            }
+            public void ancestorRemoved(javax.swing.event.AncestorEvent evt) {
+            }
+        });
+        redoItem.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                redoItemActionPerformed(evt);
+            }
+        });
+        jMenuEdit.add(redoItem);
 
-    jMenuItemDelete.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_DELETE, 0));
-    jMenuItemDelete.setText("Delete");
-    jMenuItemDelete.addActionListener(new java.awt.event.ActionListener() {
-        public void actionPerformed(java.awt.event.ActionEvent evt) {
-            jMenuItemDeleteActionPerformed(evt);
-        }
-    });
-    jMenuEdit.add(jMenuItemDelete);
+        jMenuItemDelete.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_DELETE, 0));
+        jMenuItemDelete.setText("Delete");
+        jMenuItemDelete.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jMenuItemDeleteActionPerformed(evt);
+            }
+        });
+        jMenuEdit.add(jMenuItemDelete);
 
-    jMenuItemSelectAll.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_A,
-        Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()));
-jMenuItemSelectAll.setText("Select All");
-jMenuItemSelectAll.addActionListener(new java.awt.event.ActionListener() {
-    public void actionPerformed(java.awt.event.ActionEvent evt) {
-        jMenuItemSelectAllActionPerformed(evt);
-    }
-    });
-    jMenuEdit.add(jMenuItemSelectAll);
+        jMenuItemSelectAll.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_A, KeyUtils.CONTROL_OR_CMD_MASK));
+        jMenuItemSelectAll.setText("Select All");
+        jMenuItemSelectAll.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jMenuItemSelectAllActionPerformed(evt);
+            }
+        });
+        jMenuEdit.add(jMenuItemSelectAll);
 
-    jMenuItemAddObj.setText("New Object...");
-    jMenuItemAddObj.addActionListener(new java.awt.event.ActionListener() {
-        public void actionPerformed(java.awt.event.ActionEvent evt) {
-            jMenuItemAddObjActionPerformed(evt);
-        }
-    });
-    jMenuEdit.add(jMenuItemAddObj);
-    jMenuEdit.add(jSeparator4);
+        jMenuItemAddObj.setText("New Object...");
+        jMenuItemAddObj.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jMenuItemAddObjActionPerformed(evt);
+            }
+        });
+        jMenuEdit.add(jMenuItemAddObj);
+        jMenuEdit.add(jSeparator4);
 
-    jMenuBar1.add(jMenuEdit);
+        jMenuBar1.add(jMenuEdit);
 
-    jMenuView.setMnemonic('V');
-    jMenuView.setText("View");
+        jMenuView.setMnemonic('V');
+        jMenuView.setText("View");
 
-    jMenuItemNotes.setText("Notes");
-    jMenuItemNotes.addActionListener(new java.awt.event.ActionListener() {
-        public void actionPerformed(java.awt.event.ActionEvent evt) {
-            jMenuItemNotesActionPerformed(evt);
-        }
-    });
-    jMenuView.add(jMenuItemNotes);
+        jMenuItemNotes.setText("Notes");
+        jMenuItemNotes.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jMenuItemNotesActionPerformed(evt);
+            }
+        });
+        jMenuView.add(jMenuItemNotes);
 
-    jMenuItemSettings.setText("Settings");
-    jMenuItemSettings.addActionListener(new java.awt.event.ActionListener() {
-        public void actionPerformed(java.awt.event.ActionEvent evt) {
-            jMenuItemSettingsActionPerformed(evt);
-        }
-    });
-    jMenuView.add(jMenuItemSettings);
-    jMenuView.add(jSeparator2);
+        jMenuItemSettings.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_I, java.awt.event.InputEvent.META_MASK));
+        jMenuItemSettings.setText("Settings");
+        jMenuItemSettings.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jMenuItemSettingsActionPerformed(evt);
+            }
+        });
+        jMenuView.add(jMenuItemSettings);
+        jMenuView.add(jSeparator2);
 
-    jCheckBoxMenuItemCordsInBackground.setText("Patch Cords In Background");
-    jCheckBoxMenuItemCordsInBackground.addActionListener(new java.awt.event.ActionListener() {
-        public void actionPerformed(java.awt.event.ActionEvent evt) {
-            jCheckBoxMenuItemCordsInBackgroundActionPerformed(evt);
-        }
-    });
-    jMenuView.add(jCheckBoxMenuItemCordsInBackground);
+        jCheckBoxMenuItemCordsInBackground.setText("Patch Cords In Background");
+        jCheckBoxMenuItemCordsInBackground.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jCheckBoxMenuItemCordsInBackgroundActionPerformed(evt);
+            }
+        });
+        jMenuView.add(jCheckBoxMenuItemCordsInBackground);
 
-    jMenuItemAdjScroll.setText("Adjust Scroll");
-    jMenuItemAdjScroll.addActionListener(new java.awt.event.ActionListener() {
-        public void actionPerformed(java.awt.event.ActionEvent evt) {
-            jMenuItemAdjScrollActionPerformed(evt);
-        }
-    });
-    jMenuView.add(jMenuItemAdjScroll);
+        jMenuItemAdjScroll.setText("Adjust Scroll");
+        jMenuItemAdjScroll.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jMenuItemAdjScrollActionPerformed(evt);
+            }
+        });
+        jMenuView.add(jMenuItemAdjScroll);
+        jMenuView.add(jSeparator5);
 
-    jMenuBar1.add(jMenuView);
+        zoomInMenuItem.setText("Zoom In");
+        zoomInMenuItem.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                zoomInMenuItemActionPerformed(evt);
+            }
+        });
+        jMenuView.add(zoomInMenuItem);
 
-    jMenuPatch.setMnemonic('P');
-    jMenuPatch.setText("Patch");
+        zoomDefaultMenuItem.setText("Zoom to Default");
+        zoomDefaultMenuItem.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                zoomDefaultMenuItemActionPerformed(evt);
+            }
+        });
+        jMenuView.add(zoomDefaultMenuItem);
 
-    jCheckBoxMenuItemLive.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_E,
-        Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()));
-jCheckBoxMenuItemLive.setText("Live");
-jCheckBoxMenuItemLive.addActionListener(new java.awt.event.ActionListener() {
-    public void actionPerformed(java.awt.event.ActionEvent evt) {
-        jCheckBoxMenuItemLiveActionPerformed(evt);
-    }
-    });
-    jMenuPatch.add(jCheckBoxMenuItemLive);
+        zoomOutMenuItem.setText("Zoom Out");
+        zoomOutMenuItem.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                zoomOutMenuItemActionPerformed(evt);
+            }
+        });
+        jMenuView.add(zoomOutMenuItem);
 
-    jMenuItemUploadSD.setText("Upload to SDCard");
-    jMenuItemUploadSD.addActionListener(new java.awt.event.ActionListener() {
-        public void actionPerformed(java.awt.event.ActionEvent evt) {
-            jMenuItemUploadSDActionPerformed(evt);
-        }
-    });
-    jMenuPatch.add(jMenuItemUploadSD);
+        jMenuBar1.add(jMenuView);
 
-    jMenuItemUploadSDStart.setText("Upload to SDCard as startup");
-    jMenuItemUploadSDStart.addActionListener(new java.awt.event.ActionListener() {
-        public void actionPerformed(java.awt.event.ActionEvent evt) {
-            jMenuItemUploadSDStartActionPerformed(evt);
-        }
-    });
-    jMenuPatch.add(jMenuItemUploadSDStart);
+        jMenuPatch.setMnemonic('P');
+        jMenuPatch.setText("Patch");
 
-    jMenuItemUploadInternalFlash.setText("Upload to internal flash");
-    jMenuItemUploadInternalFlash.addActionListener(new java.awt.event.ActionListener() {
-        public void actionPerformed(java.awt.event.ActionEvent evt) {
-            jMenuItemUploadInternalFlashActionPerformed(evt);
-        }
-    });
-    jMenuPatch.add(jMenuItemUploadInternalFlash);
-    jMenuPatch.add(jSeparator3);
+        jCheckBoxMenuItemLive.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_E, KeyUtils.CONTROL_OR_CMD_MASK));
+        jCheckBoxMenuItemLive.setText("Live");
+        jCheckBoxMenuItemLive.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jCheckBoxMenuItemLiveActionPerformed(evt);
+            }
+        });
+        jMenuPatch.add(jCheckBoxMenuItemLive);
 
-    jMenuGenerateCode.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_G,
-        Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()));
-jMenuGenerateCode.setText("Generate code");
-jMenuGenerateCode.addActionListener(new java.awt.event.ActionListener() {
-    public void actionPerformed(java.awt.event.ActionEvent evt) {
-        jMenuGenerateCodeActionPerformed(evt);
-    }
-    });
-    jMenuPatch.add(jMenuGenerateCode);
+        jMenuItemUploadSD.setText("Upload to SDCard");
+        jMenuItemUploadSD.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jMenuItemUploadSDActionPerformed(evt);
+            }
+        });
+        jMenuPatch.add(jMenuItemUploadSD);
 
-    jMenuCompileCode.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_H,
-        Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()));
-jMenuCompileCode.setText("Compile code");
-jMenuCompileCode.addActionListener(new java.awt.event.ActionListener() {
-    public void actionPerformed(java.awt.event.ActionEvent evt) {
-        jMenuCompileCodeActionPerformed(evt);
-    }
-    });
-    jMenuPatch.add(jMenuCompileCode);
+        jMenuItemUploadSDStart.setText("Upload to SDCard as startup");
+        jMenuItemUploadSDStart.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jMenuItemUploadSDStartActionPerformed(evt);
+            }
+        });
+        jMenuPatch.add(jMenuItemUploadSDStart);
 
-    jMenuUploadCode.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_J,
-        Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()));
-jMenuUploadCode.setText("Upload code");
-jMenuUploadCode.addActionListener(new java.awt.event.ActionListener() {
-    public void actionPerformed(java.awt.event.ActionEvent evt) {
-        jMenuUploadCodeActionPerformed(evt);
-    }
-    });
-    jMenuPatch.add(jMenuUploadCode);
+        jMenuItemUploadInternalFlash.setText("Upload to internal flash");
+        jMenuItemUploadInternalFlash.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jMenuItemUploadInternalFlashActionPerformed(evt);
+            }
+        });
+        jMenuPatch.add(jMenuItemUploadInternalFlash);
+        jMenuPatch.add(jSeparator3);
 
-    jMenuItemLock.setText("Lock");
-    jMenuItemLock.addActionListener(new java.awt.event.ActionListener() {
-        public void actionPerformed(java.awt.event.ActionEvent evt) {
-            jMenuItemLockActionPerformed(evt);
-        }
-    });
-    jMenuPatch.add(jMenuItemLock);
+        jMenuGenerateAndCompileCode.setText("Generate & Compile code");
+        jMenuGenerateAndCompileCode.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jMenuGenerateAndCompileCodeActionPerformed(evt);
+            }
+        });
+        jMenuPatch.add(jMenuGenerateAndCompileCode);
 
-    jMenuItemUnlock.setText("Unlock");
-    jMenuItemUnlock.addActionListener(new java.awt.event.ActionListener() {
-        public void actionPerformed(java.awt.event.ActionEvent evt) {
-            jMenuItemUnlockActionPerformed(evt);
-        }
-    });
-    jMenuPatch.add(jMenuItemUnlock);
+        jMenuGenerateCode.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_G, KeyUtils.CONTROL_OR_CMD_MASK));
+        jMenuGenerateCode.setText("Generate code");
+        jMenuGenerateCode.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jMenuGenerateCodeActionPerformed(evt);
+            }
+        });
+        jMenuPatch.add(jMenuGenerateCode);
 
-    jMenuBar1.add(jMenuPatch);
+        jMenuCompileCode.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_H, KeyUtils.CONTROL_OR_CMD_MASK));
+        jMenuCompileCode.setText("Compile code");
+        jMenuCompileCode.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jMenuCompileCodeActionPerformed(evt);
+            }
+        });
+        jMenuPatch.add(jMenuCompileCode);
 
-    jMenuPreset.setText("Preset");
-    jMenuPreset.setEnabled(false);
+        jMenuUploadCode.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_J, KeyUtils.CONTROL_OR_CMD_MASK));
+        jMenuUploadCode.setText("Upload code");
+        jMenuUploadCode.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jMenuUploadCodeActionPerformed(evt);
+            }
+        });
+        jMenuPatch.add(jMenuUploadCode);
 
-    jMenuItemClearPreset.setText("Clear current preset");
-    jMenuItemClearPreset.addActionListener(new java.awt.event.ActionListener() {
-        public void actionPerformed(java.awt.event.ActionEvent evt) {
-            jMenuItemClearPresetActionPerformed(evt);
-        }
-    });
-    jMenuPreset.add(jMenuItemClearPreset);
+        jMenuItemLock.setText("Lock");
+        jMenuItemLock.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jMenuItemLockActionPerformed(evt);
+            }
+        });
+        jMenuPatch.add(jMenuItemLock);
 
-    jMenuItemPresetCurrentToInit.setText("Copy current state to init");
-    jMenuItemPresetCurrentToInit.addActionListener(new java.awt.event.ActionListener() {
-        public void actionPerformed(java.awt.event.ActionEvent evt) {
-            jMenuItemPresetCurrentToInitActionPerformed(evt);
-        }
-    });
-    jMenuPreset.add(jMenuItemPresetCurrentToInit);
+        jMenuItemUnlock.setText("Unlock");
+        jMenuItemUnlock.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jMenuItemUnlockActionPerformed(evt);
+            }
+        });
+        jMenuPatch.add(jMenuItemUnlock);
 
-    jMenuItemDifferenceToPreset.setText("Difference between current and init to preset");
-    jMenuItemDifferenceToPreset.addActionListener(new java.awt.event.ActionListener() {
-        public void actionPerformed(java.awt.event.ActionEvent evt) {
-            jMenuItemDifferenceToPresetActionPerformed(evt);
-        }
-    });
-    jMenuPreset.add(jMenuItemDifferenceToPreset);
+        jMenuItemDumpMod.setText("Dump modulation matrix");
+        jMenuItemDumpMod.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jMenuItemDumpModActionPerformed(evt);
+            }
+        });
+        jMenuPatch.add(jMenuItemDumpMod);
 
-    jMenuBar1.add(jMenuPreset);
+        jMenuBar1.add(jMenuPatch);
 
-    jMenuWindow.setMnemonic('W');
-    jMenuWindow.setText("Window");
-    jMenuWindow.addMenuListener(new javax.swing.event.MenuListener() {
-        public void menuCanceled(javax.swing.event.MenuEvent evt) {
-        }
-        public void menuDeselected(javax.swing.event.MenuEvent evt) {
-            jMenuWindowMenuDeselected(evt);
-        }
-        public void menuSelected(javax.swing.event.MenuEvent evt) {
-            jMenuWindowMenuSelected(evt);
-        }
-    });
-    jMenuBar1.add(jMenuWindow);
+        jMenuPreset.setText("Preset");
+        jMenuPreset.setEnabled(false);
 
-    jMenuHelp.setMnemonic('H');
-    jMenuHelp.setText("Help");
+        jMenuItemClearPreset.setText("Clear current preset");
+        jMenuItemClearPreset.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jMenuItemClearPresetActionPerformed(evt);
+            }
+        });
+        jMenuPreset.add(jMenuItemClearPreset);
 
-    jMenuHelpContents.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_F1, 0));
-    jMenuHelpContents.setText("Help Contents");
-    jMenuHelpContents.addActionListener(new java.awt.event.ActionListener() {
-        public void actionPerformed(java.awt.event.ActionEvent evt) {
-            jMenuHelpContentsActionPerformed(evt);
-        }
-    });
-    jMenuHelp.add(jMenuHelpContents);
+        jMenuItemPresetCurrentToInit.setText("Copy current state to init");
+        jMenuItemPresetCurrentToInit.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jMenuItemPresetCurrentToInitActionPerformed(evt);
+            }
+        });
+        jMenuPreset.add(jMenuItemPresetCurrentToInit);
 
-    jMenuAbout.setText("About...");
-    jMenuAbout.addActionListener(new java.awt.event.ActionListener() {
-        public void actionPerformed(java.awt.event.ActionEvent evt) {
-            jMenuAboutActionPerformed(evt);
-        }
-    });
-    jMenuHelp.add(jMenuAbout);
+        jMenuItemDifferenceToPreset.setText("Difference between current and init to preset");
+        jMenuItemDifferenceToPreset.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jMenuItemDifferenceToPresetActionPerformed(evt);
+            }
+        });
+        jMenuPreset.add(jMenuItemDifferenceToPreset);
 
-    jMenuBar1.add(jMenuHelp);
+        jMenuBar1.add(jMenuPreset);
+        jMenuBar1.add(windowMenu1);
 
-    setJMenuBar(jMenuBar1);
+        helpMenu1.setText("Help");
+        jMenuBar1.add(helpMenu1);
 
-    pack();
+        setJMenuBar(jMenuBar1);
+
+        pack();
     }// </editor-fold>//GEN-END:initComponents
 
     private void jCheckBoxLiveActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jCheckBoxLiveActionPerformed
@@ -679,10 +742,6 @@ jMenuUploadCode.addActionListener(new java.awt.event.ActionListener() {
         }
     }//GEN-LAST:event_jCheckBoxLiveActionPerformed
 
-    private void jMenuOpenActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuOpenActionPerformed
-        MainFrame.mainframe.OpenPatch();
-    }//GEN-LAST:event_jMenuOpenActionPerformed
-
     private void jMenuSaveActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuSaveActionPerformed
         String fn = patch.getFileNamePath();
         if ((fn != null) && (!fn.equals("untitled"))) {
@@ -694,60 +753,12 @@ jMenuUploadCode.addActionListener(new java.awt.event.ActionListener() {
         }
     }//GEN-LAST:event_jMenuSaveActionPerformed
 
-    private void jMenuSaveAsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuSaveAsActionPerformed
+    File FileChooserSave() {
         final JFileChooser fc = new JFileChooser(MainFrame.prefs.getCurrentFileDirectory());
         fc.setAcceptAllFileFilterUsed(false);
-        FileFilter axp = new FileFilter() {
-            @Override
-            public boolean accept(File file) {
-                if (file.getName().endsWith("axp")) {
-                    return true;
-                } else if (file.isDirectory()) {
-                    return true;
-                }
-                return false;
-            }
-
-            @Override
-            public String getDescription() {
-                return "Axoloti Patch";
-            }
-        };
-        FileFilter axh = new FileFilter() {
-            @Override
-            public boolean accept(File file) {
-                if (file.getName().endsWith("axh")) {
-                    return true;
-                } else if (file.isDirectory()) {
-                    return true;
-                }
-                return false;
-            }
-
-            @Override
-            public String getDescription() {
-                return "Axoloti Help";
-            }
-        };
-        FileFilter axs = new FileFilter() {
-            @Override
-            public boolean accept(File file) {
-                if (file.getName().endsWith("axs")) {
-                    return true;
-                } else if (file.isDirectory()) {
-                    return true;
-                }
-                return false;
-            }
-
-            @Override
-            public String getDescription() {
-                return "Axoloti Subpatch";
-            }
-        };
-        fc.addChoosableFileFilter(axp);
-        fc.addChoosableFileFilter(axs);
-        fc.addChoosableFileFilter(axh);
+        fc.addChoosableFileFilter(FileUtils.axpFileFilter);
+        fc.addChoosableFileFilter(FileUtils.axsFileFilter);
+        fc.addChoosableFileFilter(FileUtils.axhFileFilter);
         String fn = patch.getFileNamePath();
         if (fn == null) {
             fn = "untitled";
@@ -756,41 +767,39 @@ jMenuUploadCode.addActionListener(new java.awt.event.ActionListener() {
         fc.setSelectedFile(f);
 
         String ext = "";
-        int dot=fn.lastIndexOf('.');
-        if(dot > 0 && fn.length() > dot+3) {
+        int dot = fn.lastIndexOf('.');
+        if (dot > 0 && fn.length() > dot + 3) {
             ext = fn.substring(dot);
         }
         if (ext.equalsIgnoreCase(".axp")) {
-            fc.setFileFilter(axp);
+            fc.setFileFilter(FileUtils.axpFileFilter);
         } else if (ext.equalsIgnoreCase(".axs")) {
-            fc.setFileFilter(axs);
+            fc.setFileFilter(FileUtils.axsFileFilter);
         } else if (ext.equalsIgnoreCase(".axh")) {
-            fc.setFileFilter(axh);
+            fc.setFileFilter(FileUtils.axhFileFilter);
+        } else {
+            fc.setFileFilter(FileUtils.axpFileFilter);
         }
-        else {
-            fc.setFileFilter(axp);
-        }
-        
+
         int returnVal = fc.showSaveDialog(this);
         if (returnVal == JFileChooser.APPROVE_OPTION) {
             String filterext = ".axp";
-            if (fc.getFileFilter() == axp) {
+            if (fc.getFileFilter() == FileUtils.axpFileFilter) {
                 filterext = ".axp";
-            } else if (fc.getFileFilter() == axs) {
+            } else if (fc.getFileFilter() == FileUtils.axsFileFilter) {
                 filterext = ".axs";
-            } else if (fc.getFileFilter() == axh) {
+            } else if (fc.getFileFilter() == FileUtils.axhFileFilter) {
                 filterext = ".axh";
             }
 
             File fileToBeSaved = fc.getSelectedFile();
             ext = "";
             String fname = fileToBeSaved.getAbsolutePath();
-            dot=fname.lastIndexOf('.');
-            if(dot > 0 && fname.length() > dot+3) {
+            dot = fname.lastIndexOf('.');
+            if (dot > 0 && fname.length() > dot + 3) {
                 ext = fname.substring(dot);
             }
 
-            
             if (!(ext.equalsIgnoreCase(".axp")
                     || ext.equalsIgnoreCase(".axh")
                     || ext.equalsIgnoreCase(".axs"))) {
@@ -801,7 +810,7 @@ jMenuUploadCode.addActionListener(new java.awt.event.ActionListener() {
                 Object[] options = {"Yes",
                     "No"};
                 int n = JOptionPane.showOptionDialog(this,
-                        "File does not match filter, do you want to change extension to "+filterext+" ?",
+                        "File does not match filter, do you want to change extension to " + filterext + " ?",
                         "Axoloti asks:",
                         JOptionPane.YES_NO_OPTION,
                         JOptionPane.QUESTION_MESSAGE,
@@ -810,12 +819,12 @@ jMenuUploadCode.addActionListener(new java.awt.event.ActionListener() {
                         options[1]);
                 switch (n) {
                     case JOptionPane.YES_OPTION:
-                        fileToBeSaved = new File(fname.substring(0,fname.length()-4) + filterext);
+                        fileToBeSaved = new File(fname.substring(0, fname.length() - 4) + filterext);
                         break;
                     case JOptionPane.NO_OPTION:
-                        return;
+                        return null;
                 }
-            } 
+            }
 
             if (fileToBeSaved.exists()) {
                 Object[] options = {"Yes",
@@ -832,19 +841,23 @@ jMenuUploadCode.addActionListener(new java.awt.event.ActionListener() {
                     case JOptionPane.YES_OPTION:
                         break;
                     case JOptionPane.NO_OPTION:
-                        return;
+                        return null;
                 }
             }
+            return fileToBeSaved;
+        } else {
+            return null;
+        }
+    }
 
+    private void jMenuSaveAsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuSaveAsActionPerformed
+        File fileToBeSaved = FileChooserSave();
+        if (fileToBeSaved != null) {
             patch.setFileNamePath(fileToBeSaved.getPath());
             MainFrame.prefs.setCurrentFileDirectory(fileToBeSaved.getPath());
             patch.save(fileToBeSaved);
         }
     }//GEN-LAST:event_jMenuSaveAsActionPerformed
-
-    private void jMenuQuitActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuQuitActionPerformed
-        patch.GetMainFrame().Quit();
-    }//GEN-LAST:event_jMenuQuitActionPerformed
 
     private void jMenuItemAdjScrollActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItemAdjScrollActionPerformed
         jScrollPane1.setAutoscrolls(true);
@@ -891,27 +904,6 @@ jMenuUploadCode.addActionListener(new java.awt.event.ActionListener() {
         patch.DifferenceToPreset();
     }//GEN-LAST:event_jMenuItemDifferenceToPresetActionPerformed
 
-    private void jMenuWindowMenuDeselected(javax.swing.event.MenuEvent evt) {//GEN-FIRST:event_jMenuWindowMenuDeselected
-        jMenuWindow.removeAll();
-    }//GEN-LAST:event_jMenuWindowMenuDeselected
-
-    private void jMenuWindowMenuSelected(javax.swing.event.MenuEvent evt) {//GEN-FIRST:event_jMenuWindowMenuSelected
-        WindowMenu.PopulateWindowMenu(jMenuWindow);
-    }//GEN-LAST:event_jMenuWindowMenuSelected
-
-    private void jMenuHelpContentsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuHelpContentsActionPerformed
-        try {
-            File f = new File("doc/index.html");
-            Desktop.getDesktop().browse(f.toURI());
-        } catch (IOException ex) {
-            Logger.getLogger(MainFrame.class.getName()).log(Level.SEVERE, null, ex);
-        }
-    }//GEN-LAST:event_jMenuHelpContentsActionPerformed
-
-    private void jMenuAboutActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuAboutActionPerformed
-        AboutFrame.aboutFrame.setVisible(true);
-    }//GEN-LAST:event_jMenuAboutActionPerformed
-
     private void formWindowClosing(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowClosing
         AskClose();
     }//GEN-LAST:event_formWindowClosing
@@ -919,10 +911,6 @@ jMenuUploadCode.addActionListener(new java.awt.event.ActionListener() {
     private void jMenuItemDeleteActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItemDeleteActionPerformed
         patch.deleteSelectedAxoObjInstances();
     }//GEN-LAST:event_jMenuItemDeleteActionPerformed
-
-    private void jMenuNewActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuNewActionPerformed
-        MainFrame.mainframe.NewPatch();
-    }//GEN-LAST:event_jMenuNewActionPerformed
 
     private void jMenuItemSelectAllActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItemSelectAllActionPerformed
         patch.SelectAll();
@@ -933,10 +921,24 @@ jMenuUploadCode.addActionListener(new java.awt.event.ActionListener() {
     }//GEN-LAST:event_jMenuItemNotesActionPerformed
 
     private void jMenuItemSettingsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItemSettingsActionPerformed
-        if (patch.settings == null) {
-            patch.settings = new PatchSettings();
+        AxoObjectInstanceAbstract selObj = null;
+        ArrayList<AxoObjectInstanceAbstract> oi = patch.objectinstances;
+        if(oi != null) {
+            for(AxoObjectInstanceAbstract i : oi) {
+                if(i.IsSelected() && i instanceof AxoObjectInstance) {
+                    selObj = i;
+                }
+            }
         }
-        patch.settings.showEditor();
+        
+        if(selObj!=null) {
+            ((AxoObjectInstance) selObj).OpenEditor();
+        } else {
+            if (patch.settings == null) {
+                patch.settings = new PatchSettings();
+            }
+            patch.settings.showEditor(patch);
+        }
     }//GEN-LAST:event_jMenuItemSettingsActionPerformed
 
     private void jCheckBoxMenuItemLiveActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jCheckBoxMenuItemLiveActionPerformed
@@ -954,26 +956,11 @@ jMenuUploadCode.addActionListener(new java.awt.event.ActionListener() {
     }//GEN-LAST:event_jCheckBoxMenuItemLiveActionPerformed
 
     private void jMenuItemUploadSDActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItemUploadSDActionPerformed
-        patch.WriteCode();
-        String FileNameNoPath = patch.getFileNamePath();
-        String separator = System.getProperty("file.separator");
-        int lastSeparatorIndex = FileNameNoPath.lastIndexOf(separator);
-        if (lastSeparatorIndex > 0) {
-            FileNameNoPath = FileNameNoPath.substring(lastSeparatorIndex + 1);
-        }
-        Logger.getLogger(PatchFrame.class.getName()).log(Level.INFO, "target filename:{0}", FileNameNoPath);
-        qcmdprocessor.AppendToQueue(new qcmds.QCmdStop());
-        qcmdprocessor.AppendToQueue(new qcmds.QCmdCompilePatch(patch));
-        qcmdprocessor.AppendToQueue(new qcmds.QCmdWriteFile("0:" + FileNameNoPath));
+        patch.UploadToSDCard();
     }//GEN-LAST:event_jMenuItemUploadSDActionPerformed
 
     private void jMenuItemUploadSDStartActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItemUploadSDStartActionPerformed
-        patch.WriteCode();
-        String FileNameNoPath = "start.bin";
-        Logger.getLogger(PatchFrame.class.getName()).log(Level.INFO, "target filename:{0}", FileNameNoPath);
-        qcmdprocessor.AppendToQueue(new qcmds.QCmdStop());
-        qcmdprocessor.AppendToQueue(new qcmds.QCmdCompilePatch(patch));
-        qcmdprocessor.AppendToQueue(new qcmds.QCmdWriteFile("0:" + FileNameNoPath));
+        patch.UploadToSDCard("/start.bin");
     }//GEN-LAST:event_jMenuItemUploadSDStartActionPerformed
 
     private void jMenuSaveClipActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuSaveClipActionPerformed
@@ -1004,8 +991,67 @@ jMenuUploadCode.addActionListener(new java.awt.event.ActionListener() {
         AskClose();
     }//GEN-LAST:event_jMenuCloseActionPerformed
 
-    private boolean GoLive() {
+    private void formFocusLost(java.awt.event.FocusEvent evt) {//GEN-FIRST:event_formFocusLost
+        setCursor(Cursor.getDefaultCursor());
+    }//GEN-LAST:event_formFocusLost
 
+    private void jMenuItemDumpModActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItemDumpModActionPerformed
+        String s = patch.GenerateModulationCode3();
+        Logger.getLogger(PatchFrame.class.getName()).log(Level.INFO, "modmatrix \n{0}", s);
+    }//GEN-LAST:event_jMenuItemDumpModActionPerformed
+
+    private void formComponentShown(java.awt.event.ComponentEvent evt) {//GEN-FIRST:event_formComponentShown
+        DocumentWindowList.RegisterWindow(this);
+    }//GEN-LAST:event_formComponentShown
+
+    private void formComponentHidden(java.awt.event.ComponentEvent evt) {//GEN-FIRST:event_formComponentHidden
+        DocumentWindowList.UnregisterWindow(this);
+    }//GEN-LAST:event_formComponentHidden
+
+    private void jMenuSaveCopyActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuSaveCopyActionPerformed
+        File fileToBeSaved = FileChooserSave();
+        if (fileToBeSaved != null) {
+            MainFrame.prefs.setCurrentFileDirectory(fileToBeSaved.getPath());
+            patch.save(fileToBeSaved);
+        }
+    }//GEN-LAST:event_jMenuSaveCopyActionPerformed
+
+    private void jMenuGenerateAndCompileCodeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuGenerateAndCompileCodeActionPerformed
+        patch.WriteCode();
+        patch.Compile();
+    }//GEN-LAST:event_jMenuGenerateAndCompileCodeActionPerformed
+
+    private void zoomInMenuItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_zoomInMenuItemActionPerformed
+        patch.handleZoom(Constants.ZOOM_ACTION.IN, new Point(0, 0));
+    }//GEN-LAST:event_zoomInMenuItemActionPerformed
+
+    private void zoomDefaultMenuItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_zoomDefaultMenuItemActionPerformed
+        patch.handleZoom(Constants.ZOOM_ACTION.DEFAULT, new Point(0, 0));
+    }//GEN-LAST:event_zoomDefaultMenuItemActionPerformed
+
+    private void zoomOutMenuItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_zoomOutMenuItemActionPerformed
+        patch.handleZoom(Constants.ZOOM_ACTION.OUT, new Point(0, 0));
+    }//GEN-LAST:event_zoomOutMenuItemActionPerformed
+
+    private void undoItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_undoItemActionPerformed
+        patch.undo();
+        this.updateUndoRedoEnabled();
+    }//GEN-LAST:event_undoItemActionPerformed
+
+    private void redoItemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_redoItemActionPerformed
+        patch.redo();
+        this.updateUndoRedoEnabled();
+    }//GEN-LAST:event_redoItemActionPerformed
+
+    private void undoItemAncestorAdded(javax.swing.event.AncestorEvent evt) {//GEN-FIRST:event_undoItemAncestorAdded
+        undoItem.setEnabled(patch.canUndo());
+    }//GEN-LAST:event_undoItemAncestorAdded
+
+    private void redoItemAncestorAdded(javax.swing.event.AncestorEvent evt) {//GEN-FIRST:event_redoItemAncestorAdded
+        redoItem.setEnabled(patch.canRedo());
+    }//GEN-LAST:event_redoItemAncestorAdded
+
+    private boolean GoLive() {
         if (patch.getFileNamePath().endsWith(".axs") || patch.container() != null) {
             Object[] options = {"Yes",
                 "No"};
@@ -1032,26 +1078,26 @@ jMenuUploadCode.addActionListener(new java.awt.event.ActionListener() {
     /* write to sdcard...
      */
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private axoloti.menus.FileMenu fileMenu1;
     private javax.swing.Box.Filler filler2;
     private javax.swing.Box.Filler filler3;
+    private axoloti.menus.HelpMenu helpMenu1;
     private javax.swing.JCheckBox jCheckBoxLive;
     private javax.swing.JCheckBoxMenuItem jCheckBoxMenuItemCordsInBackground;
     private javax.swing.JCheckBoxMenuItem jCheckBoxMenuItemLive;
     private javax.swing.JLabel jLabel1;
-    private javax.swing.JMenuItem jMenuAbout;
     private javax.swing.JMenuBar jMenuBar1;
     private javax.swing.JMenuItem jMenuClose;
     private javax.swing.JMenuItem jMenuCompileCode;
     private javax.swing.JMenu jMenuEdit;
-    private javax.swing.JMenu jMenuFile;
+    private javax.swing.JMenuItem jMenuGenerateAndCompileCode;
     private javax.swing.JMenuItem jMenuGenerateCode;
-    private javax.swing.JMenu jMenuHelp;
-    private javax.swing.JMenuItem jMenuHelpContents;
     private javax.swing.JMenuItem jMenuItemAddObj;
     private javax.swing.JMenuItem jMenuItemAdjScroll;
     private javax.swing.JMenuItem jMenuItemClearPreset;
     private javax.swing.JMenuItem jMenuItemDelete;
     private javax.swing.JMenuItem jMenuItemDifferenceToPreset;
+    private javax.swing.JMenuItem jMenuItemDumpMod;
     private javax.swing.JMenuItem jMenuItemLock;
     private javax.swing.JMenuItem jMenuItemNotes;
     private javax.swing.JMenuItem jMenuItemPresetCurrentToInit;
@@ -1061,24 +1107,28 @@ jMenuUploadCode.addActionListener(new java.awt.event.ActionListener() {
     private javax.swing.JMenuItem jMenuItemUploadInternalFlash;
     private javax.swing.JMenuItem jMenuItemUploadSD;
     private javax.swing.JMenuItem jMenuItemUploadSDStart;
-    private javax.swing.JMenuItem jMenuNew;
-    private javax.swing.JMenuItem jMenuOpen;
     private javax.swing.JMenu jMenuPatch;
     private javax.swing.JMenu jMenuPreset;
-    private javax.swing.JMenuItem jMenuQuit;
     private javax.swing.JMenuItem jMenuSave;
     private javax.swing.JMenuItem jMenuSaveAs;
     private javax.swing.JMenuItem jMenuSaveClip;
+    private javax.swing.JMenuItem jMenuSaveCopy;
     private javax.swing.JMenuItem jMenuUploadCode;
     private javax.swing.JMenu jMenuView;
-    private javax.swing.JMenu jMenuWindow;
     private javax.swing.JProgressBar jProgressBarDSPLoad;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JPopupMenu.Separator jSeparator1;
     private javax.swing.JPopupMenu.Separator jSeparator2;
     private javax.swing.JPopupMenu.Separator jSeparator3;
     private javax.swing.JPopupMenu.Separator jSeparator4;
+    private javax.swing.JPopupMenu.Separator jSeparator5;
     private javax.swing.JPanel jToolbarPanel;
+    private javax.swing.JMenuItem redoItem;
+    private javax.swing.JMenuItem undoItem;
+    private axoloti.menus.WindowMenu windowMenu1;
+    private javax.swing.JMenuItem zoomDefaultMenuItem;
+    private javax.swing.JMenuItem zoomInMenuItem;
+    private javax.swing.JMenuItem zoomOutMenuItem;
     // End of variables declaration//GEN-END:variables
 
     void ShowDSPLoad(int pct) {
@@ -1090,5 +1140,35 @@ jMenuUploadCode.addActionListener(new java.awt.event.ActionListener() {
             return;
         }
         jProgressBarDSPLoad.setValue(pct);
+    }
+
+    @Override
+    public JFrame GetFrame() {
+        return this;
+    }
+
+    @Override
+    public File getFile() {
+        if (patch.getFileNamePath() == null) {
+            return null;
+        } else {
+            return new File(patch.getFileNamePath());
+        }
+    }
+
+    public PatchGUI getPatch() {
+        return patch;
+    }
+
+    ArrayList<DocumentWindow> dwl = new ArrayList<DocumentWindow>();
+
+    @Override
+    public ArrayList<DocumentWindow> GetChildDocuments() {
+        return dwl;
+    }
+    
+    public void updateUndoRedoEnabled() {
+        redoItem.setEnabled(patch.canRedo());
+        undoItem.setEnabled(patch.canUndo());
     }
 }

@@ -44,10 +44,10 @@ void InitPatch0(void) {
   patchMeta.npresets = 0;
   patchMeta.npreset_entries = 0;
   patchMeta.pPresets = 0;
+  patchMeta.patchID = 0;
 }
 
 int dspLoadPct; // DSP load in percent
-unsigned int CycleTime;
 unsigned int DspTime;
 
 static int32_t inbuf[32];
@@ -63,7 +63,6 @@ static msg_t ThreadDSP(void *arg) {
   while (1) {
     chEvtWaitOne((eventmask_t)1);
     static unsigned int tStart;
-    CycleTime = RTT2US(hal_lld_get_counter_value() - tStart);
     tStart = hal_lld_get_counter_value();
     watchdog_feed();
     if (!patchStatus) { // running
@@ -96,7 +95,18 @@ static msg_t ThreadDSP(void *arg) {
     }
     adc_convert();
     DspTime = RTT2US(hal_lld_get_counter_value() - tStart);
-    dspLoadPct = (100 * DspTime) / CycleTime;
+    dspLoadPct = (100 * DspTime) / (1000000/3000);
+    if (dspLoadPct>99) {
+      // overload:
+      // clear output buffers
+      // and give other processes a chance
+      int i;
+      for (i = 0; i < 32; i++) {
+        outbuf[i] = 0;
+      }
+//      LogTextMessage("dsp overrun");
+      chThdSleepMilliseconds(1);
+    }
   }
   return (msg_t)0;
 }
@@ -116,16 +126,20 @@ void StopPatch(void) {
   }
 }
 
+static char loadFName[64] = {'f','l','a','s','h',0};
+
 void StartPatch(void) {
   KVP_ClearObjects();
   sdcard_attemptMountIfUnmounted();
   // reinit pin configuration for adc
   adc_configpads();
+  int *ccm; // clear ccmram area declared in ramlink.ld
+  for(ccm = 0x10000000;ccm<0x10000000+0x0000C000;ccm++) *ccm=0;
   patchMeta.fptr_dsp_process = 0;
   patchMeta.fptr_patch_init = (fptr_patch_init_t)(PATCHMAINLOC + 1);
   (patchMeta.fptr_patch_init)(GetFirmwareID());
   if (patchMeta.fptr_dsp_process == 0) {
-    // failed, incompatible firmwareID?
+    report_patchLoadFail((const char *)&loadFName[0]);
     return;
   }
   patchStatus = 0;
@@ -165,7 +179,8 @@ void MidiInMsgHandler(midi_device_t dev, uint8_t port, uint8_t status,
 
 // Thread to load a new patch from within a patch
 
-static char loadFName[16];
+static const char *index_fn = "/index.axb";
+
 static WORKING_AREA(waThreadLoader, 1024);
 static Thread *pThreadLoader;
 static msg_t ThreadLoader(void *arg) {
@@ -176,18 +191,90 @@ static msg_t ThreadLoader(void *arg) {
   while (1) {
     chEvtWaitOne((eventmask_t)1);
     StopPatch();
-    sdcard_loadPatch(loadFName);
+    if (loadFName[0])
+      sdcard_loadPatch(loadFName);
+    else {
+      FRESULT err;
+      FIL f;
+      uint32_t bytes_read;
+      uint32_t index = *(uint32_t *)(&loadFName[4]);
+      err = f_open(&f,index_fn,FA_READ | FA_OPEN_EXISTING);
+      if (err) report_fatfs_error(err,index_fn);
+      err = f_read(&f, (uint8_t *)PATCHMAINLOC, 0xE000,
+                   (void *)&bytes_read);
+      if (err != FR_OK) {
+        report_fatfs_error(err,index_fn);
+        continue;
+      }
+      err = f_close(&f);
+      if (err != FR_OK) {
+        report_fatfs_error(err,index_fn);
+        continue;
+      }
+      char *t;
+      t = (char *)PATCHMAINLOC;
+      uint32_t cindex = 0;
+
+      //LogTextMessage("load %d %d %x",index, bytes_read, t);
+      while (bytes_read) {
+        //LogTextMessage("scan %d",*t);
+        if (cindex == index) {
+          //LogTextMessage("match %d",index);
+          char *p, *e;
+          p = t; e = t;
+          while((*e != '\n') && bytes_read){
+            e++;
+            bytes_read--;
+          }
+          if (bytes_read) {
+            e = e - 4;
+            *e++ = '/';
+            *e++ = 'p';
+            *e++ = 'a';
+            *e++ = 't';
+            *e++ = 'c';
+            *e++ = 'h';
+            *e++ = '.';
+            *e++ = 'b';
+            *e++ = 'i';
+            *e++ = 'n';
+            *e = 0;
+            loadFName[0] = '/';
+            strcpy(&loadFName[1],p);
+            sdcard_loadPatch(loadFName);
+          }
+          goto cont;
+        }
+        if (*t == '\n'){
+          cindex++;
+        }
+        t++;
+        bytes_read--;
+      }
+      if (!bytes_read) {
+        LogTextMessage("patch load out-of-range %d",index);
+        strcpy(&loadFName[0],"/start.bin");
+        sdcard_loadPatch(loadFName);
+      }
+cont:
+      ;
+    }
   }
   return (msg_t)0;
 }
 
 void StartLoadPatchTread(void) {
   pThreadLoader = chThdCreateStatic(waThreadLoader, sizeof(waThreadLoader),
-  NORMALPRIO,
-                                    ThreadLoader, NULL);
+  NORMALPRIO, ThreadLoader, NULL);
 }
 
 void LoadPatch(const char *name) {
   strcpy(loadFName, name);
+  chEvtSignal(pThreadLoader, (eventmask_t)1);
+}
+
+void LoadPatchIndexed(uint32_t index) {
+  loadFName[0] = 0;
+  *(uint32_t *)(&loadFName[4]) = index;
   chEvtSignal(pThreadLoader, (eventmask_t)1);
 }

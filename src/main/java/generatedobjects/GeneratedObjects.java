@@ -17,11 +17,11 @@
  */
 package generatedobjects;
 
-import axoloti.outlets.*;
-import axoloti.inlets.*;
 import axoloti.attributedefinition.*;
+import axoloti.inlets.*;
 import axoloti.object.AxoObject;
 import axoloti.object.AxoObjectAbstract;
+import axoloti.outlets.*;
 import axoloti.parameters.*;
 import static generatedobjects.gentools.WriteAxoObject;
 import java.util.ArrayList;
@@ -30,6 +30,7 @@ import java.util.ArrayList;
  *
  * @author Johannes Taelman
  */
+@Deprecated
 public class GeneratedObjects extends gentools {
 
     static public void WriteAxoObjects() {

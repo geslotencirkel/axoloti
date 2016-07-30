@@ -41,6 +41,10 @@ public class ParameterFrac32UMap extends ParameterFrac32 {
         super(name);
     }
 
+    public ParameterFrac32UMap(String name, ValueFrac32 DefaultValue) {
+        super(name, DefaultValue);
+    }
+    
     @Override
     public ParameterInstanceFrac32UMap InstanceFactory() {
         return new ParameterInstanceFrac32UMap();
@@ -50,5 +54,12 @@ public class ParameterFrac32UMap extends ParameterFrac32 {
     public void updateSHA(MessageDigest md) {
         super.updateSHA(md);
         md.update("frac32.u.map".getBytes());
+    }
+
+    static public final String TypeName = "frac32.u.map";
+
+    @Override
+    public String getTypeName() {
+        return TypeName;
     }
 }

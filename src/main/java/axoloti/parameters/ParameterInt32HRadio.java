@@ -17,7 +17,6 @@
  */
 package axoloti.parameters;
 
-import axoloti.datatypes.Int32;
 import axoloti.datatypes.ValueInt32;
 import java.security.MessageDigest;
 import org.simpleframework.xml.Element;
@@ -26,12 +25,13 @@ import org.simpleframework.xml.Element;
  *
  * @author Johannes Taelman
  */
-public class ParameterInt32HRadio extends Parameter<Int32> {
+public class ParameterInt32HRadio extends Parameter<ParameterInstanceInt32HRadio> {
 
     @Element
-    ValueInt32 MaxValue;
+    public ValueInt32 MaxValue;
 
     public ParameterInt32HRadio() {
+        this.MaxValue = new ValueInt32(1);
     }
 
     public ParameterInt32HRadio(String name, int MinValue, int MaxValue) {
@@ -40,7 +40,7 @@ public class ParameterInt32HRadio extends Parameter<Int32> {
     }
 
     @Override
-    public ParameterInstance InstanceFactory() {
+    public ParameterInstanceInt32HRadio InstanceFactory() {
         ParameterInstanceInt32HRadio b = new ParameterInstanceInt32HRadio();
         return b;
     }
@@ -49,5 +49,12 @@ public class ParameterInt32HRadio extends Parameter<Int32> {
     public void updateSHA(MessageDigest md) {
         super.updateSHA(md);
         md.update(("int32.hradio" + MaxValue.getInt()).getBytes());
+    }
+
+    static public final String TypeName = "int32.hradio";
+
+    @Override
+    public String getTypeName() {
+        return TypeName;
     }
 }

@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2013, 2014 Johannes Taelman
+ * Copyright (C) 2013 - 2016 Johannes Taelman
  *
  * This file is part of Axoloti.
  *
@@ -17,7 +17,7 @@
  */
 package axoloti.attribute;
 
-import axoloti.attributedefinition.AxoAttribute;
+import axoloti.attributedefinition.AxoAttributeTablename;
 import axoloti.object.AxoObjectInstance;
 import axoloti.utils.Constants;
 import java.awt.Dimension;
@@ -25,6 +25,8 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import javax.swing.JLabel;
 import javax.swing.JTextField;
 import org.simpleframework.xml.Attribute;
@@ -33,18 +35,21 @@ import org.simpleframework.xml.Attribute;
  *
  * @author Johannes Taelman
  */
-public class AttributeInstanceTablename extends AttributeInstanceString {
+public class AttributeInstanceTablename extends AttributeInstanceString<AxoAttributeTablename> {
 
     @Attribute(name = "table")
     String tableName = "";
     JTextField TFtableName;
     JLabel vlabel;
+    
+    private AxoObjectInstance axoObj;
 
     public AttributeInstanceTablename() {
     }
 
-    public AttributeInstanceTablename(AxoAttribute param, AxoObjectInstance axoObj1) {
+    public AttributeInstanceTablename(AxoAttributeTablename param, AxoObjectInstance axoObj1) {
         super(param, axoObj1);
+        this.axoObj = axoObj1;
     }
 
     @Override
@@ -54,12 +59,26 @@ public class AttributeInstanceTablename extends AttributeInstanceString {
         Dimension d = TFtableName.getSize();
         d.width = 128;
         d.height = 22;
-        TFtableName.setFont(Constants.font);
+        TFtableName.setFont(Constants.FONT);
         TFtableName.setMaximumSize(d);
         TFtableName.setMinimumSize(d);
         TFtableName.setPreferredSize(d);
         TFtableName.setSize(d);
         add(TFtableName);
+        TFtableName.addKeyListener(new KeyListener() {
+            @Override
+            public void keyTyped(KeyEvent ke) {
+            }
+
+            @Override
+            public void keyReleased(KeyEvent ke) {
+            }
+
+            @Override
+            public void keyPressed(KeyEvent ke) {
+                axoObj.getParent().repaint();
+            }
+        });
         TFtableName.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent ae) {
@@ -111,4 +130,5 @@ public class AttributeInstanceTablename extends AttributeInstanceString {
             TFtableName.setText(tableName);
         }
     }
+
 }

@@ -21,12 +21,14 @@ import axoloti.MainFrame;
 import axoloti.Patch;
 import axoloti.PatchFrame;
 import axoloti.PatchGUI;
+import java.awt.Rectangle;
 import java.io.File;
-import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.simpleframework.xml.Serializer;
+import org.simpleframework.xml.convert.AnnotationStrategy;
 import org.simpleframework.xml.core.Persister;
+import org.simpleframework.xml.strategy.Strategy;
 
 /**
  *
@@ -81,18 +83,15 @@ public class AxoObjectFromPatch extends AxoObject {
         sMidiCode = o.sMidiCode;
         sSRateCode = o.sSRateCode;
         helpPatch = o.helpPatch;
-        if (instances != null) {
-            ArrayList<AxoObjectInstance> i2 = new ArrayList<AxoObjectInstance>(instances);
-            for (AxoObjectInstance i : i2) {
-                i.getPatch().ChangeObjectInstanceType(i, this);
-            }
-        }
+
+        FireObjectModified(this);
     }
 
     @Override
-    public void OpenEditor() {
+    public void OpenEditor(Rectangle editorBounds, Integer editorActiveTabIndex) {
         if (pg == null) {
-            Serializer serializer = new Persister();
+            Strategy strategy = new AnnotationStrategy();
+            Serializer serializer = new Persister(strategy);
             try {
                 pg = serializer.read(PatchGUI.class, f);
                 pf = new PatchFrame((PatchGUI) pg, MainFrame.mainframe.getQcmdprocessor());

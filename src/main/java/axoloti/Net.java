@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
 import org.simpleframework.xml.*;
 
 /**
@@ -56,7 +57,8 @@ public class Net extends JPanel {
         if (dest == null) {
             dest = new ArrayList<InletInstance>();
         }
-        setSize(5000, 5000);
+
+        setSize(1, 1);
         setLocation(0, 0);
         setOpaque(false);
     }
@@ -67,7 +69,6 @@ public class Net extends JPanel {
     }
 
     public void PostConstructor() {
-
         // InletInstances and OutletInstances actually already exist, need to replace dummies with the real ones
         ArrayList<OutletInstance> source2 = new ArrayList<OutletInstance>();
         for (OutletInstance i : source) {
@@ -107,6 +108,7 @@ public class Net extends JPanel {
         }
         source = source2;
         dest = dest2;
+        updateBounds();
     }
 
     public boolean isSelected() {
@@ -124,22 +126,25 @@ public class Net extends JPanel {
         for (InletInstance i : dest) {
             i.setHighlighted(selected);
         }
-        if (patch != null) {
-            this.repaint();
-        }
+    }
+
+    public boolean getSelected() {
+        return this.selected;
     }
 
     public void connectInlet(InletInstance inlet) {
-        if (inlet.axoObj.patch != patch) {
+        if (inlet.GetObjectInstance().patch != patch) {
             return;
         }
         dest.add(inlet);
+        updateBounds();
     }
 
     public void connectOutlet(OutletInstance outlet) {
-        if (outlet.axoObj.patch == patch) {
+        if (outlet.GetObjectInstance().patch == patch) {
             source.add(outlet);
         }
+        updateBounds();
     }
 
     public boolean isValidNet() {
@@ -163,7 +168,7 @@ public class Net extends JPanel {
     Color GetColor() {
         Color c = GetDataType().GetColor();
         if (c == null) {
-            c = Color.DARK_GRAY;
+            c = Theme.getCurrentTheme().Cable_Default;
         }
         return c;
     }
@@ -179,11 +184,37 @@ public class Net extends JPanel {
         g2.draw(curve);
     }
 
+    protected void updateBounds() {
+        int min_y = Integer.MAX_VALUE;
+        int min_x = Integer.MAX_VALUE;
+        int max_y = Integer.MIN_VALUE;
+        int max_x = Integer.MIN_VALUE;
+
+        for (InletInstance i : dest) {
+            Point p1 = i.getJackLocInCanvas();
+            min_x = Math.min(min_x, p1.x);
+            min_y = Math.min(min_y, p1.y);
+            max_x = Math.max(max_x, p1.x);
+            max_y = Math.max(max_y, p1.y);
+        }
+        for (OutletInstance i : source) {
+            Point p1 = i.getJackLocInCanvas();
+            min_x = Math.min(min_x, p1.x);
+            min_y = Math.min(min_y, p1.y);
+            max_x = Math.max(max_x, p1.x);
+            max_y = Math.max(max_y, p1.y);
+        }
+
+        int fudge = Math.max((max_x - min_x) / 8, (max_y - min_y) / 8);
+        this.setLocation(new Point(min_x - fudge, min_y - fudge));
+        this.setSize(Math.max(1, max_x - min_x + (2 * fudge)),
+                Math.max(1, max_y - min_y + (2 * fudge)));
+    }
+
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         float shadowOffset = 0.5f;
-
         Graphics2D g2 = (Graphics2D) g;
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
                 RenderingHints.VALUE_ANTIALIAS_ON);
@@ -210,8 +241,9 @@ public class Net extends JPanel {
             if (GetDataType() != null) {
                 c = GetDataType().GetColor();
             } else {
-                c = Color.BLACK;
+                c = Theme.getCurrentTheme().Cable_Shadow;
             }
+
             if (!source.isEmpty()) {
                 p0 = source.get(0).getJackLocInCanvas();
             } else if (!dest.isEmpty()) {
@@ -220,51 +252,46 @@ public class Net extends JPanel {
                 throw new Error("empty nets should not exist");
             }
         }
-        int lastSource = 0;
-        for (OutletInstance i : source) {
-//  Indicate latched connections
-            int j = patch.objectinstances.indexOf(i.axoObj);
-            if (j > lastSource) {
-                lastSource = j;
-            }
-            Point p1 = i.getJackLocInCanvas();
-            g2.setColor(Color.BLACK);
-            DrawWire(g2, p0.x + shadowOffset, p0.y + shadowOffset, p1.x + shadowOffset, p1.y + shadowOffset);
-            g2.setColor(c);
-            DrawWire(g2, p0.x, p0.y, p1.x, p1.y);
-        }
+
+        Point from = SwingUtilities.convertPoint(getPatchGui().Layers, p0, this);
         for (InletInstance i : dest) {
             Point p1 = i.getJackLocInCanvas();
-            g2.setColor(Color.BLACK);
-            DrawWire(g2, p0.x + shadowOffset, p0.y + shadowOffset, p1.x + shadowOffset, p1.y + shadowOffset);
+
+            Point to = SwingUtilities.convertPoint(getPatchGui().Layers, p1, this);
+            g2.setColor(Theme.getCurrentTheme().Cable_Shadow);
+            DrawWire(g2, from.x + shadowOffset, from.y + shadowOffset, to.x + shadowOffset, to.y + shadowOffset);
             g2.setColor(c);
-            DrawWire(g2, p0.x, p0.y, p1.x, p1.y);
-//  Indicate latched connections
-//<editor-fold defaultstate="collapsed" desc="unused">
-//            if (false) {
-//                int j = patch.objectinstances.indexOf(i.axoObj);
-//                if (j <= lastSource) {
-//                    int x = (p0.x + p1.x) / 2;
-//                    int y = (int) (0.5f * (p0.y + p1.y) + Math.abs(p1.y - p0.y) * 0.3f + Math.abs(p1.x - p0.x) * 0.05f);
-//                    g2.fillOval(x - 5, y - 5, 10, 10);
-//                }
-//            }
-//</editor-fold>
+            DrawWire(g2, from.x, from.y, to.x, to.y);
         }
+        for (OutletInstance i : source) {
+            Point p1 = i.getJackLocInCanvas();
+
+            Point to = SwingUtilities.convertPoint(getPatchGui().Layers, p1, this);
+            g2.setColor(Theme.getCurrentTheme().Cable_Shadow);
+            DrawWire(g2, from.x + shadowOffset, from.y + shadowOffset, to.x + shadowOffset, to.y + shadowOffset);
+            g2.setColor(c);
+            DrawWire(g2, from.x, from.y, to.x, to.y);
+
+        }
+        updateBounds();
+    }
+
+    public PatchGUI getPatchGui() {
+        return (PatchGUI) patch;
     }
 
     public boolean NeedsLatch() {
         // reads before last write on net
         int lastSource = 0;
         for (OutletInstance s : source) {
-            int i = patch.objectinstances.indexOf(s.axoObj);
+            int i = patch.objectinstances.indexOf(s.GetObjectInstance());
             if (i > lastSource) {
                 lastSource = i;
             }
         }
         int firstDest = java.lang.Integer.MAX_VALUE;
         for (InletInstance d : dest) {
-            int i = patch.objectinstances.indexOf(d.axoObj);
+            int i = patch.objectinstances.indexOf(d.GetObjectInstance());
             if (i < firstDest) {
                 firstDest = i;
             }

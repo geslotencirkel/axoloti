@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2013, 2014 Johannes Taelman
+ * Copyright (C) 2013 - 2016 Johannes Taelman
  *
  * This file is part of Axoloti.
  *
@@ -17,11 +17,13 @@
  */
 package axoloti.attribute;
 
-import axoloti.attributedefinition.AxoAttribute;
+import axoloti.attributedefinition.AxoAttributeWavefile;
 import axoloti.object.AxoObjectInstance;
 import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -41,19 +43,22 @@ import org.simpleframework.xml.Attribute;
  *
  * @author Johannes Taelman
  */
-public class AttributeInstanceWavefile extends AttributeInstance {
+@Deprecated
+public class AttributeInstanceWavefile extends AttributeInstance<AxoAttributeWavefile> {
 
     @Attribute
     String waveFilename;
     JTextField TFwaveFilename;
     JLabel vlabel;
+    
+    private AxoObjectInstance axoObj;
 
     public AttributeInstanceWavefile() {
     }
 
-    public AttributeInstanceWavefile(AxoAttribute param, AxoObjectInstance axoObj1) {
+    public AttributeInstanceWavefile(AxoAttributeWavefile param, AxoObjectInstance axoObj1) {
         super(param, axoObj1);
-//        PostConstructor();
+        this.axoObj = axoObj1;
     }
 
     @Override
@@ -68,6 +73,20 @@ public class AttributeInstanceWavefile extends AttributeInstance {
         TFwaveFilename.setPreferredSize(d);
         TFwaveFilename.setSize(d);
         add(TFwaveFilename);
+        TFwaveFilename.addKeyListener(new KeyListener() {
+            @Override
+            public void keyTyped(KeyEvent ke) {
+            }
+
+            @Override
+            public void keyReleased(KeyEvent ke) {
+            }
+
+            @Override
+            public void keyPressed(KeyEvent ke) {
+                axoObj.getParent().repaint();
+            }
+        });
         TFwaveFilename.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent ae) {
@@ -79,7 +98,7 @@ public class AttributeInstanceWavefile extends AttributeInstance {
     @Override
     public String CValue() {
         String s = " {";
-        File fp = new File(axoObj.getPatch().getFileNamePath());
+        File fp = new File(GetObjectInstance().getPatch().getFileNamePath());
         File f = new File(fp.getParent() + "/" + waveFilename);
         System.out.println("waveFilename : " + fp.getParent() + "/" + waveFilename + "\n");
 

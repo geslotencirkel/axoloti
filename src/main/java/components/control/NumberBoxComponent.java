@@ -18,18 +18,21 @@
 package components.control;
 
 import axoloti.MainFrame;
+import axoloti.Theme;
 import axoloti.datatypes.ValueFrac32;
 import axoloti.realunits.NativeToReal;
 import axoloti.utils.Constants;
+import axoloti.utils.KeyUtils;
 import java.awt.AWTException;
 import java.awt.BasicStroke;
-import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.MouseInfo;
 import java.awt.Point;
 import java.awt.RenderingHints;
+import java.awt.Robot;
 import java.awt.Stroke;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
@@ -37,15 +40,12 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.awt.Robot;
 
 /**
  *
  * @author Johannes Taelman
  */
-
 // FIXME: integer versus float model. Currently NumberBoxComponent assumes integers...
-
 public class NumberBoxComponent extends ACtrlComponent {
 
     private double value;
@@ -54,6 +54,15 @@ public class NumberBoxComponent extends ACtrlComponent {
     private double tick;
     private NativeToReal convs[];
     private String keybBuffer = "";
+
+    private boolean hiliteUp = false;
+    private boolean hiliteDown = false;
+    private boolean dragging = false;
+    
+    private Robot robot;
+
+    int rmargin = 5;
+    int htick = 3;
 
     public void setNative(NativeToReal convs[]) {
         this.convs = convs;
@@ -88,31 +97,29 @@ public class NumberBoxComponent extends ACtrlComponent {
     }
 
     final int layoutTick = 3;
-    Robot robot = null;
 
     @Override
     protected void mouseDragged(MouseEvent e) {
-        if (isEnabled()) {
+        if (isEnabled() && dragging) {
             double v;
             if ((MousePressedBtn == MouseEvent.BUTTON1)) {
-                getRootPane().setCursor(MainFrame.transparentCursor);
                 double t = tick;
                 t = t * 0.1;
                 if (e.isShiftDown()) {
                     t = t * 0.1;
                 }
-                if (e.isControlDown()) {
+                if (KeyUtils.isControlOrCommandDown(e)) {
                     t = t * 0.1;
                 }
                 v = value + t * (MousePressedCoordY - e.getYOnScreen());
                 if (robot == null) {
                     try {
-                        robot = new Robot();
+                        robot = new Robot(MouseInfo.getPointerInfo().getDevice());
                     } catch (AWTException ex) {
                         Logger.getLogger(NumberBoxComponent.class.getName()).log(Level.SEVERE, null, ex);
                     }
                 }
-                robot.mouseMove(MousePressedCoordX, MousePressedCoordY);
+                this.robotMoveToCenter();
                 if (v > max) {
                     v = max;
                 }
@@ -130,14 +137,34 @@ public class NumberBoxComponent extends ACtrlComponent {
     @Override
     protected void mousePressed(MouseEvent e) {
         grabFocus();
-        MousePressedCoordX = e.getXOnScreen();
-        MousePressedCoordY = e.getYOnScreen();
-        MousePressedBtn = e.getButton();
+        if (isEnabled() && (e.getX() >= getWidth() - rmargin - htick * 2)) {
+            dragging = false;
+            if (e.getY() > getHeight() / 2) {
+                hiliteDown = true;
+                setValue(value - tick);
+            } else {
+                hiliteUp = true;
+                setValue(value + tick);
+            }
+        } else {
+            dragging = true;
+            MousePressedCoordX = e.getXOnScreen();
+            MousePressedCoordY = e.getYOnScreen();
+            MousePressedBtn = e.getButton();
+            getRootPane().setCursor(MainFrame.transparentCursor);
+        }
     }
 
     @Override
     protected void mouseReleased(MouseEvent e) {
+        if (hiliteDown) {
+            hiliteDown = false;
+        }
+        if (hiliteUp) {
+            hiliteUp = false;
+        }
         getRootPane().setCursor(Cursor.getDefaultCursor());
+        robot = null;
     }
 
     @Override
@@ -146,10 +173,10 @@ public class NumberBoxComponent extends ACtrlComponent {
             double steps = tick;
             if (ke.isShiftDown()) {
                 steps = steps * 0.1; // mini steps!
-                if (ke.isControlDown()) {
+                if (KeyUtils.isControlOrCommandDown(ke)) {
                     steps = steps * 0.1; // micro steps!                
                 }
-            } else if (ke.isControlDown()) {
+            } else if (KeyUtils.isControlOrCommandDown(ke)) {
                 steps = steps * 10.0; //accelerate!
             }
             switch (ke.getKeyCode()) {
@@ -186,17 +213,14 @@ public class NumberBoxComponent extends ACtrlComponent {
                     }
                     keybBuffer = "";
                     ke.consume();
-                    repaint();
                     break;
                 case KeyEvent.VK_BACK_SPACE:
                     keybBuffer = keybBuffer.substring(0, keybBuffer.length() - 1);
                     ke.consume();
-                    repaint();
                     break;
                 case KeyEvent.VK_ESCAPE:
                     keybBuffer = "";
                     ke.consume();
-                    repaint();
                     break;
                 default:
             }
@@ -215,7 +239,6 @@ public class NumberBoxComponent extends ACtrlComponent {
                 case '.':
                     keybBuffer += ke.getKeyChar();
                     ke.consume();
-                    repaint();
                     break;
                 default:
             }
@@ -238,9 +261,9 @@ public class NumberBoxComponent extends ACtrlComponent {
             g2.setStroke(strokeThin);
         }
         if (isEnabled()) {
-            g2.setColor(Color.white);
+            g2.setColor(Theme.getCurrentTheme().Component_Secondary);
         } else {
-            g2.setPaint(getBackground());
+            g2.setPaint(Theme.getCurrentTheme().Object_Default_Background);
         }
 
         g2.fillRect(0, 0, getWidth(), getHeight());
@@ -251,45 +274,51 @@ public class NumberBoxComponent extends ACtrlComponent {
         int h = 3;
         int v = 4;
         if (getWidth() < 20) {
-            s = String.format("%d", (int)value);
+            s = String.format("%d", (int) value);
             if (s.length() < 2) {
                 h = 3;
             } else {
                 h = 0;
             }
         } else {
-            s = String.format("%5d", (int)value);
+            s = String.format("%5d", (int) value);
         }
         if (getHeight() < 15) {
             v = 2;
         }
         if (keybBuffer.isEmpty()) {
-            g2.setFont(Constants.font);
+            g2.setFont(Constants.FONT);
             g2.drawString(s, h, getSize().height - v);
         } else {
-            g2.setColor(Color.red);
-            g2.setFont(Constants.font);
+            g2.setColor(Theme.getCurrentTheme().Error_Text);
+            g2.setFont(Constants.FONT);
             g2.drawString(keybBuffer, h, getSize().height - v);
         }
-
-        int rmargin = 5;
-        int htick = 3;
 
         if (getWidth() < 20) {
             rmargin = -1;
             htick = 1;
         }
+        g2.setStroke(strokeThin);
         {
             int[] xp = new int[]{getWidth() - rmargin - htick * 2, getWidth() - rmargin, getWidth() - rmargin - htick};
             final int vmargin = getHeight() - htick - 3;
             int[] yp = new int[]{vmargin, vmargin, vmargin + htick};
-            g2.fillPolygon(xp, yp, 3);
+            if (hiliteDown) {
+                g2.drawPolygon(xp, yp, 3);
+            } else {
+                g2.fillPolygon(xp, yp, 3);
+            }
         }
         {
             int[] xp = new int[]{getWidth() - rmargin - htick * 2, getWidth() - rmargin, getWidth() - rmargin - htick};
             final int vmargin = 4;
             int[] yp = new int[]{vmargin + htick, vmargin + htick, vmargin};
-            g2.fillPolygon(xp, yp, 3);
+            if (hiliteUp) {
+                g2.drawPolygon(xp, yp, 3);
+            } else {
+                g2.fillPolygon(xp, yp, 3);
+            }
         }
     }
 
@@ -312,7 +341,6 @@ public class NumberBoxComponent extends ACtrlComponent {
             this.setToolTipText(s);
         }
 
-        repaint();
         fireEvent();
     }
 
@@ -347,5 +375,11 @@ public class NumberBoxComponent extends ACtrlComponent {
 
     @Override
     void keyReleased(KeyEvent key) {
+    }
+    
+    @Override
+    public void robotMoveToCenter() {
+        getRootPane().setCursor(MainFrame.transparentCursor);
+        robot.mouseMove(MousePressedCoordX, MousePressedCoordY);
     }
 }

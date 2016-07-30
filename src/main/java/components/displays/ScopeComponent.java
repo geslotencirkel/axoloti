@@ -17,8 +17,8 @@
  */
 package components.displays;
 
+import axoloti.Theme;
 import java.awt.BasicStroke;
-import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -61,7 +61,7 @@ public class ScopeComponent extends ADispComponent {
         g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
                 RenderingHints.VALUE_INTERPOLATION_BILINEAR);
         g2.setStroke(strokeThick);
-        g2.setColor(Color.white);
+        g2.setColor(Theme.getCurrentTheme().Component_Secondary);
         g2.fillRect(0, 0, length + 2, vsize + 2);
         g2.setPaint(getForeground());
         g2.drawRect(0, 0, length + 2, vsize + 2);
@@ -69,11 +69,13 @@ public class ScopeComponent extends ADispComponent {
         if (index > 1) {
             g2.drawPolyline(xvalue, value, index - 1);
         }
-        g2.setColor(Color.GRAY);
+        g2.setColor(Theme.getCurrentTheme().Component_Mid);
         if (index < length - 2) {
             g2.drawPolyline(java.util.Arrays.copyOfRange(xvalue, index, length - 1),
                     java.util.Arrays.copyOfRange(value, index, length - 1), length - index - 1);
         }
+        int v = (int) Project(0);
+        g2.drawLine(0, v, length, v);
     }
 
     @Override
@@ -84,11 +86,15 @@ public class ScopeComponent extends ADispComponent {
         if (value > max) {
             value = max;
         }
-        this.value[index++] = (int) (1 + (vsize * (max - value)) / ((max - min)));
+        this.value[index++] = (int) Project(value);
         if (index >= length) {
             index = 0;
         }
-        repaint();
+        paintObjectLayer();
+    }
+
+    double Project(double value) {
+        return (1 + (vsize * (max - value)) / ((max - min)));
     }
 
     public double getMinimum() {
