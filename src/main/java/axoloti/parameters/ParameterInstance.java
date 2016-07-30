@@ -18,9 +18,7 @@
 package axoloti.parameters;
 
 import axoloti.Preset;
-import axoloti.Theme;
-import axoloti.ZoomUtils;
-import axoloti.atom.AtomInstance;
+import axoloti.datatypes.DataType;
 import axoloti.datatypes.Value;
 import axoloti.object.AxoObjectInstance;
 import axoloti.realunits.NativeToReal;
@@ -31,8 +29,8 @@ import components.LabelComponent;
 import components.control.ACtrlComponent;
 import components.control.ACtrlEvent;
 import components.control.ACtrlListener;
+import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Point;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
@@ -43,6 +41,7 @@ import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
+import javax.swing.UIManager;
 import javax.swing.event.MouseInputAdapter;
 import org.simpleframework.xml.Attribute;
 import org.simpleframework.xml.ElementList;
@@ -51,20 +50,22 @@ import org.simpleframework.xml.Root;
 /**
  *
  * @author Johannes Taelman
+ * @param <dt> data type
  */
 @Root(name = "param")
-public abstract class ParameterInstance<T extends Parameter> extends JPanel implements ActionListener, AtomInstance<T> {
+public abstract class ParameterInstance<dt extends DataType> extends JPanel implements ActionListener {
 
     @Attribute
-    String name;
+    public String name;
     @Attribute(required = false)
     private Boolean onParent;
     protected int index;
-    public T parameter;
+    public Parameter<dt> parameter;
     @ElementList(required = false)
     ArrayList<Preset> presets;
     protected boolean needsTransmit = false;
-    AxoObjectInstance axoObj;
+    public AxoObjectInstance axoObj;
+//    JLabel lbl;
     LabelComponent valuelbl = new LabelComponent("123456789");
     NativeToReal convs[];
     int selectedConv = 0;
@@ -77,7 +78,7 @@ public abstract class ParameterInstance<T extends Parameter> extends JPanel impl
     public ParameterInstance() {
     }
 
-    public ParameterInstance(T param, AxoObjectInstance axoObj1) {
+    public ParameterInstance(Parameter<dt> param, AxoObjectInstance axoObj1) {
         super();
         parameter = param;
         axoObj = axoObj1;
@@ -130,6 +131,7 @@ public abstract class ParameterInstance<T extends Parameter> extends JPanel impl
             valuelbl.setPreferredSize(d);
             valuelbl.setSize(d);
             valuelbl.setMaximumSize(d);
+//            valuelbl.setSize(getWidth(), Constants.font.);
             valuelbl.addMouseListener(new MouseInputAdapter() {
                 @Override
                 public void mouseClicked(MouseEvent e) {
@@ -146,11 +148,6 @@ public abstract class ParameterInstance<T extends Parameter> extends JPanel impl
 //            ShowPreset(axoObj.patch.presetNo);
 
         ctrl = CreateControl();
-        if (parameter.description != null) {
-            ctrl.setToolTipText(parameter.description);
-        } else {
-            ctrl.setToolTipText(parameter.name);
-        }
         add(getControlComponent());
         getControlComponent().addMouseListener(popupMouseListener);
         getControlComponent().addACtrlListener(new ACtrlListener() {
@@ -205,23 +202,18 @@ public abstract class ParameterInstance<T extends Parameter> extends JPanel impl
 
     public byte[] TXData() {
         needsTransmit = false;
-        byte[] data = new byte[14];
+        byte[] data = new byte[10];
         data[0] = 'A';
         data[1] = 'x';
         data[2] = 'o';
         data[3] = 'P';
-        int pid = GetObjectInstance().getPatch().GetIID();
-        data[4] = (byte) pid;
-        data[5] = (byte) (pid >> 8);
-        data[6] = (byte) (pid >> 16);
-        data[7] = (byte) (pid >> 24);
         int tvalue = GetValueRaw();
-        data[8] = (byte) tvalue;
-        data[9] = (byte) (tvalue >> 8);
-        data[10] = (byte) (tvalue >> 16);
-        data[11] = (byte) (tvalue >> 24);
-        data[12] = (byte) (index);
-        data[13] = (byte) (index >> 8);
+        data[4] = (byte) tvalue;
+        data[5] = (byte) (tvalue >> 8);
+        data[6] = (byte) (tvalue >> 16);
+        data[7] = (byte) (tvalue >> 24);
+        data[8] = (byte) (index);
+        data[9] = (byte) (index >> 8);
         return data;
     }
 
@@ -262,9 +254,9 @@ public abstract class ParameterInstance<T extends Parameter> extends JPanel impl
         }
     }
 
-    public abstract Value getValue();
+    public abstract Value<dt> getValue();
 
-    public void setValue(Value value) {
+    public void setValue(Value<dt> value) {
         if (axoObj != null) {
             if (axoObj.getPatch() != null) {
                 axoObj.getPatch().SetDirty();
@@ -288,11 +280,6 @@ public abstract class ParameterInstance<T extends Parameter> extends JPanel impl
     public String indexName() {
         return "PARAM_INDEX_" + axoObj.getLegalName() + "_" + getLegalName();
 //        return ("" + index);
-    }
-
-    @Override
-    public String getName() {
-        return name;
     }
 
     public String getLegalName() {
@@ -345,9 +332,10 @@ public abstract class ParameterInstance<T extends Parameter> extends JPanel impl
 
     void SetPresetState(boolean b) { // OBSOLETE
         if (b) {
-            setBackground(Theme.getCurrentTheme().Paramete_Preset_Highlight);
-        } else {
-            setBackground(Theme.getCurrentTheme().Parameter_Default_Background);
+            setBackground(Color.yellow);
+        } //            setBackground(UIManager.getColor ( "Panel.background" ));
+        else {
+            setBackground(UIManager.getColor("Panel.background"));
         }
     }
 
@@ -412,7 +400,7 @@ public abstract class ParameterInstance<T extends Parameter> extends JPanel impl
         @Override
         public void mousePressed(MouseEvent e) {
             if (e.isPopupTrigger()) {
-                doPopup(e);
+                doPopup();
                 e.consume();
             }
         }
@@ -420,7 +408,7 @@ public abstract class ParameterInstance<T extends Parameter> extends JPanel impl
         @Override
         public void mouseReleased(MouseEvent e) {
             if (e.isPopupTrigger()) {
-                doPopup(e);
+                doPopup();
                 e.consume();
             }
         }
@@ -434,11 +422,10 @@ public abstract class ParameterInstance<T extends Parameter> extends JPanel impl
         }
     };
 
-    public void doPopup(MouseEvent e) {
+    public void doPopup() {
         JPopupMenu m = new JPopupMenu();
         populatePopup(m);
-
-        ZoomUtils.showZoomedPopupMenu(this, axoObj, m);
+        m.show(this, 0, getHeight());
     }
 
     public void populatePopup(JPopupMenu m) {
@@ -497,24 +484,5 @@ public abstract class ParameterInstance<T extends Parameter> extends JPanel impl
         } else if (s.equals("none")) {
             SetMidiCC(-1);
         }
-    }
-
-    @Override
-    public AxoObjectInstance GetObjectInstance() {
-        return axoObj;
-    }
-
-    @Override
-    public T GetDefinition() {
-        return parameter;
-    }
-
-    public String GenerateCodeInitModulator(String vprefix, String StructAccces) {
-        return "";
-    }
-
-    @Override
-    public Point getToolTipLocation(MouseEvent event) {
-        return ZoomUtils.getToolTipLocation(this, event, axoObj);
     }
 }

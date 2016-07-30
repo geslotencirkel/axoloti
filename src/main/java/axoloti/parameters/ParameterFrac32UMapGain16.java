@@ -44,10 +44,4 @@ public class ParameterFrac32UMapGain16 extends ParameterFrac32UMap {
         return p;
     }
 
-    static public final String TypeName = "frac32.u.map.gain16";
-
-    @Override
-    public String getTypeName() {
-        return TypeName;
-    }
 }

@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2013 - 2016 Johannes Taelman
+ * Copyright (C) 2013, 2014 Johannes Taelman
  *
  * This file is part of Axoloti.
  *
@@ -18,7 +18,7 @@
 package axoloti.attribute;
 
 import axoloti.SubPatchMode;
-import axoloti.attributedefinition.AxoAttributeObjRef;
+import axoloti.attributedefinition.AxoAttribute;
 import axoloti.object.AxoObjectInstance;
 import axoloti.utils.CharEscape;
 import axoloti.utils.Constants;
@@ -27,8 +27,6 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
 import javax.swing.JLabel;
 import javax.swing.JTextField;
 import org.simpleframework.xml.Attribute;
@@ -37,20 +35,18 @@ import org.simpleframework.xml.Attribute;
  *
  * @author Johannes Taelman
  */
-public class AttributeInstanceObjRef extends AttributeInstanceString<AxoAttributeObjRef> {
+public class AttributeInstanceObjRef extends AttributeInstanceString {
 
     @Attribute(name = "obj")
     String objName = "";
     JTextField TFObjName;
     JLabel vlabel;
-    private AxoObjectInstance axoObj;
 
     public AttributeInstanceObjRef() {
     }
 
-    public AttributeInstanceObjRef(AxoAttributeObjRef param, AxoObjectInstance axoObj1) {
+    public AttributeInstanceObjRef(AxoAttribute param, AxoObjectInstance axoObj1) {
         super(param, axoObj1);
-        this.axoObj = axoObj1;
     }
 
     @Override
@@ -60,26 +56,12 @@ public class AttributeInstanceObjRef extends AttributeInstanceString<AxoAttribut
         Dimension d = TFObjName.getSize();
         d.width = 92;
         d.height = 22;
-        TFObjName.setFont(Constants.FONT);
+        TFObjName.setFont(Constants.font);
         TFObjName.setMaximumSize(d);
         TFObjName.setMinimumSize(d);
         TFObjName.setPreferredSize(d);
         TFObjName.setSize(d);
         add(TFObjName);
-        TFObjName.addKeyListener(new KeyListener() {
-            @Override
-            public void keyTyped(KeyEvent ke) {
-            }
-
-            @Override
-            public void keyReleased(KeyEvent ke) {
-            }
-
-            @Override
-            public void keyPressed(KeyEvent ke) {
-                axoObj.getParent().repaint();
-            }
-        });
         TFObjName.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent ae) {
@@ -106,9 +88,9 @@ public class AttributeInstanceObjRef extends AttributeInstanceString<AxoAttribut
         String o2 = "parent->";
 
         if ((o.length() > 3) && (o.substring(0, 3).equals("../"))
-                && ((GetObjectInstance().patch.getSettings().subpatchmode == SubPatchMode.polyphonic)
-                || (GetObjectInstance().patch.getSettings().subpatchmode == SubPatchMode.polychannel)
-                || (GetObjectInstance().patch.getSettings().subpatchmode == SubPatchMode.polyexpression))) {
+                && ((axoObj.patch.getSettings().subpatchmode == SubPatchMode.polyphonic)
+                || (axoObj.patch.getSettings().subpatchmode == SubPatchMode.polychannel)
+                || (axoObj.patch.getSettings().subpatchmode == SubPatchMode.polyexpression))) {
             o2 = o2 + "common->";
         }
 
@@ -151,4 +133,5 @@ public class AttributeInstanceObjRef extends AttributeInstanceString<AxoAttribut
             TFObjName.setText(objName);
         }
     }
+
 }

@@ -17,13 +17,14 @@
  */
 package axoloti.parameters;
 
+import axoloti.datatypes.Int32;
 import java.security.MessageDigest;
 
 /**
  *
  * @author Johannes Taelman
  */
-public class ParameterBin1Momentary extends Parameter {
+public class ParameterBin1Momentary extends Parameter<Int32> {
 
     public ParameterBin1Momentary() {
     }
@@ -41,12 +42,5 @@ public class ParameterBin1Momentary extends Parameter {
     public void updateSHA(MessageDigest md) {
         super.updateSHA(md);
         md.update("bool32.b".getBytes());
-    }
-
-    static public final String TypeName = "bool32.mom";
-
-    @Override
-    public String getTypeName() {
-        return TypeName;
     }
 }

@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2013 - 2016 Johannes Taelman
+ * Copyright (C) 2013, 2014 Johannes Taelman
  *
  * This file is part of Axoloti.
  *
@@ -19,7 +19,7 @@ package axoloti.attribute;
 
 import axoloti.StringRef;
 import axoloti.TextEditor;
-import axoloti.attributedefinition.AxoAttributeTextEditor;
+import axoloti.attributedefinition.AxoAttribute;
 import axoloti.object.AxoObjectInstance;
 import components.ButtonComponent;
 import javax.swing.JLabel;
@@ -29,7 +29,7 @@ import org.simpleframework.xml.Element;
  *
  * @author Johannes Taelman
  */
-public class AttributeInstanceTextEditor extends AttributeInstanceString<AxoAttributeTextEditor> {
+public class AttributeInstanceTextEditor extends AttributeInstanceString {
 
     StringRef sRef = new StringRef();
 
@@ -52,7 +52,7 @@ public class AttributeInstanceTextEditor extends AttributeInstanceString<AxoAttr
         }
     }
 
-    public AttributeInstanceTextEditor(AxoAttributeTextEditor param, AxoObjectInstance axoObj1) {
+    public AttributeInstanceTextEditor(AxoAttribute param, AxoObjectInstance axoObj1) {
         super(param, axoObj1);
     }
 
@@ -65,8 +65,8 @@ public class AttributeInstanceTextEditor extends AttributeInstanceString<AxoAttr
             @Override
             public void OnPushed() {
                 if (editor == null) {
-                    editor = new TextEditor(sRef, GetObjectInstance().getPatch().getPatchframe());
-                    editor.setTitle(GetObjectInstance().getInstanceName() + "/" + attr.getName());
+                    editor = new TextEditor(sRef);
+                    editor.setTitle(axoObj.getInstanceName() + "/" + attr.getName());
                 }
                 editor.setState(java.awt.Frame.NORMAL);
                 editor.setVisible(true);

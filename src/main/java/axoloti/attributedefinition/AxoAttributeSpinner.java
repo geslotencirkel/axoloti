@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2013 - 2016 Johannes Taelman
+ * Copyright (C) 2013, 2014 Johannes Taelman
  *
  * This file is part of Axoloti.
  *
@@ -17,8 +17,8 @@
  */
 package axoloti.attributedefinition;
 
+import axoloti.attribute.AttributeInstance;
 import axoloti.attribute.AttributeInstanceSpinner;
-import axoloti.object.AxoObjectInstance;
 import org.simpleframework.xml.Attribute;
 
 /**
@@ -28,20 +28,20 @@ import org.simpleframework.xml.Attribute;
 public class AxoAttributeSpinner extends AxoAttribute {
 
     @Attribute
-    public int MinValue;
+    int MinValue;
     @Attribute
-    public int MaxValue;
+    int MaxValue;
     @Attribute
-    public int DefaultValue;
-
-    public AxoAttributeSpinner() {
-    }
+    int DefaultValue;
 
     public AxoAttributeSpinner(String name, int MinValue, int MaxValue, int DefaultValue) {
-        super(name);
+        this.name = name;
         this.MinValue = MinValue;
         this.MaxValue = MaxValue;
         this.DefaultValue = DefaultValue;
+    }
+
+    public AxoAttributeSpinner() {
     }
 
     public int getMinValue() {
@@ -57,14 +57,7 @@ public class AxoAttributeSpinner extends AxoAttribute {
     }
 
     @Override
-    public AttributeInstanceSpinner InstanceFactory(AxoObjectInstance o) {
-        return new AttributeInstanceSpinner(this, o);
-    }
-
-    static public final String TypeName = "spinner";
-
-    @Override
-    public String getTypeName() {
-        return TypeName;
+    public AttributeInstance InstanceFactory() {
+        return new AttributeInstanceSpinner();
     }
 }

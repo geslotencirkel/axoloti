@@ -17,8 +17,8 @@
  */
 package qcmds;
 
-import axoloti.Patch;
 import axoloti.utils.OSDetect;
+import axoloti.Patch;
 import java.io.File;
 import java.util.logging.Level;
 import java.util.logging.Logger;

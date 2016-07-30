@@ -42,10 +42,4 @@ public class ParameterFrac32UMapFreq extends ParameterFrac32UMap {
         return p;
     }
 
-    static public final String TypeName = "frac32.u.map.freq";
-
-    @Override
-    public String getTypeName() {
-        return TypeName;
-    }
 }

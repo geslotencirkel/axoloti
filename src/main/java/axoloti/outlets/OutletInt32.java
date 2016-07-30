@@ -38,11 +38,4 @@ public class OutletInt32 extends Outlet {
     public DataType getDatatype() {
         return Int32.d;
     }
-
-    static public final String TypeName = "int32";
-
-    @Override
-    public String getTypeName() {
-        return TypeName;
-    }
 }

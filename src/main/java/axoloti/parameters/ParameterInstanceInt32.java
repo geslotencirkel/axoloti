@@ -18,18 +18,20 @@
 package axoloti.parameters;
 
 import axoloti.Preset;
-import axoloti.Theme;
+import axoloti.datatypes.Int32;
 import axoloti.datatypes.Value;
 import axoloti.datatypes.ValueInt32;
 import axoloti.object.AxoObjectInstance;
+import java.awt.Color;
+import javax.swing.UIManager;
 import org.simpleframework.xml.Attribute;
 
 /**
  *
  * @author Johannes Taelman
  */
-public abstract class ParameterInstanceInt32<T extends Parameter> extends ParameterInstance<T> {
-    
+public abstract class ParameterInstanceInt32 extends ParameterInstance<Int32> {
+
     final ValueInt32 value = new ValueInt32();
 
     @Attribute(name = "value", required = false)
@@ -44,7 +46,7 @@ public abstract class ParameterInstanceInt32<T extends Parameter> extends Parame
         value.setInt(v);
     }
 
-    public ParameterInstanceInt32(T param, AxoObjectInstance axoObj1) {
+    public ParameterInstanceInt32(Parameter<Int32> param, AxoObjectInstance axoObj1) {
         super(param, axoObj1);
     }
 
@@ -54,7 +56,7 @@ public abstract class ParameterInstanceInt32<T extends Parameter> extends Parame
     }
 
     @Override
-    public void setValue(Value value) {
+    public void setValue(Value<Int32> value) {
         this.value.setInt(value.getInt());
         updateV();
     }
@@ -73,9 +75,9 @@ public abstract class ParameterInstanceInt32<T extends Parameter> extends Parame
     public void setOnParent(Boolean b) {
         super.setOnParent(b);
         if ((b != null) && b) {
-            setForeground(Theme.getCurrentTheme().Parameter_On_Parent_Highlight);
+            setForeground(Color.blue);
         } else {
-            setForeground(Theme.getCurrentTheme().Parameter_Default_Foreground);
+            setForeground(Color.black);
         }
     }
 
@@ -85,14 +87,14 @@ public abstract class ParameterInstanceInt32<T extends Parameter> extends Parame
         if (i > 0) {
             Preset p = GetPreset(presetEditActive);
             if (p != null) {
-                setBackground(Theme.getCurrentTheme().Paramete_Preset_Highlight);
+                setBackground(Color.yellow);
                 getControlComponent().setValue(p.value.getDouble());
             } else {
-                setBackground(Theme.getCurrentTheme().Parameter_Default_Background);
+                setBackground(UIManager.getColor("Panel.background"));
                 getControlComponent().setValue(value.getDouble());
             }
         } else {
-            setBackground(Theme.getCurrentTheme().Parameter_Default_Background);
+            setBackground(UIManager.getColor("Panel.background"));
             getControlComponent().setValue(value.getDouble());
         }
     }

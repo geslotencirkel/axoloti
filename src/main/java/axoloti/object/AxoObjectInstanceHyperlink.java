@@ -17,8 +17,8 @@
  */
 package axoloti.object;
 
+import axoloti.MainFrame;
 import axoloti.Patch;
-import axoloti.PatchGUI;
 import components.LabelComponent;
 import components.control.ACtrlEvent;
 import components.control.ACtrlListener;
@@ -76,7 +76,7 @@ public class AxoObjectInstanceHyperlink extends AxoObjectInstanceAbstract {
             s = s.substring(0, s.lastIndexOf(File.separatorChar));
             File f = new File(s + File.separatorChar + link);
             if (f.canRead()) {
-                PatchGUI.OpenPatch(f);
+                MainFrame.mainframe.OpenPatch(f);
             } else {
                 Logger.getLogger(AxoObjectInstanceHyperlink.class.getName()).log(Level.SEVERE, "can''t read file {0}", f.getAbsolutePath());                
             }
@@ -107,26 +107,14 @@ public class AxoObjectInstanceHyperlink extends AxoObjectInstanceAbstract {
                 if (e.getClickCount() == 2) {
                     addInstanceNameEditor();
                 }
-                if (patch != null) {
-                    if (e.getClickCount() == 1) {
-                        if (e.isShiftDown()) {
-                            SetSelected(!GetSelected());
-                        } else if (Selected == false) {
-                            ((PatchGUI) patch).SelectNone();
-                            SetSelected(true);
-                        }
-                    }
-                }
             }
 
             @Override
             public void mousePressed(MouseEvent e) {
-                ml.mousePressed(e);
             }
 
             @Override
             public void mouseReleased(MouseEvent e) {
-                ml.mouseReleased(e);
             }
 
             @Override
@@ -137,7 +125,6 @@ public class AxoObjectInstanceHyperlink extends AxoObjectInstanceAbstract {
             public void mouseExited(MouseEvent e) {
             }
         });
-        InstanceLabel.addMouseMotionListener(mml);
         add(InstanceLabel);
 
         resizeToGrid();

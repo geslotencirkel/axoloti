@@ -17,7 +17,6 @@
  */
 package axoloti.datatypes;
 
-import axoloti.Theme;
 import java.awt.Color;
 
 /**
@@ -51,7 +50,7 @@ public class CharPtr32 implements DataType {
 
     @Override
     public Color GetColor() {
-        return Theme.getCurrentTheme().Cable_CharPointer32;
+        return Color.PINK;
     }
 
     @Override
@@ -79,14 +78,9 @@ public class CharPtr32 implements DataType {
         int hash = 9;
         return hash;
     }
-
+    
     @Override
     public boolean isPointer() {
         return true;
-    }
-
-    @Override
-    public String UnconnectedSink() {
-        return "(char * &)UNCONNECTED_OUTPUT";
-    }
+    }    
 }

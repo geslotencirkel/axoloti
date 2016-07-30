@@ -38,10 +38,4 @@ public class OutletFrac32BufferPos extends OutletFrac32Buffer {
         return SignalMetaData.positive;
     }
 
-    static public final String TypeName = "frac32buffer.positive";
-
-    @Override
-    public String getTypeName() {
-        return TypeName;
-    }
 }

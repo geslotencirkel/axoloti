@@ -43,7 +43,7 @@ public class QCmdShowCompileFail implements QCmdGUITask {
 
     @Override
     public void DoGUI(QCmdProcessor processor) {
-        processor.ClearQueue();
+        processor.queue.clear();
         p.ShowCompileFail();
     }
 }

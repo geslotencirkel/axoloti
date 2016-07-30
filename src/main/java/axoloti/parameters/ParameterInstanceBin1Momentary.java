@@ -17,6 +17,7 @@
  */
 package axoloti.parameters;
 
+import axoloti.datatypes.Int32;
 import axoloti.datatypes.Value;
 import components.control.PulseButtonComponent;
 import org.simpleframework.xml.Attribute;
@@ -69,7 +70,7 @@ public class ParameterInstanceBin1Momentary extends ParameterInstanceInt32 {
     }
 
     @Override
-    public void setValue(Value value) {
+    public void setValue(Value<Int32> value) {
         super.setValue(value);
         updateV();
     }

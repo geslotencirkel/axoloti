@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2013 - 2016 Johannes Taelman
+ * Copyright (C) 2013, 2014 Johannes Taelman
  *
  * This file is part of Axoloti.
  *
@@ -17,18 +17,18 @@
  */
 package axoloti.attribute;
 
+import axoloti.attributedefinition.AxoAttribute;
 import axoloti.attributedefinition.AxoAttributeComboBox;
 import axoloti.object.AxoObjectInstance;
 import axoloti.utils.Constants;
 import components.DropDownComponent;
-import java.util.logging.Level;
 import org.simpleframework.xml.Attribute;
 
 /**
  *
  * @author Johannes Taelman
  */
-public class AttributeInstanceComboBox extends AttributeInstanceString<AxoAttributeComboBox> {
+public class AttributeInstanceComboBox extends AttributeInstanceString {
 
     @Attribute(name = "selection", required = false)
     String selection;
@@ -37,7 +37,7 @@ public class AttributeInstanceComboBox extends AttributeInstanceString<AxoAttrib
     public AttributeInstanceComboBox() {
     }
 
-    public AttributeInstanceComboBox(AxoAttributeComboBox param, AxoObjectInstance axoObj1) {
+    public AttributeInstanceComboBox(AxoAttribute param, AxoObjectInstance axoObj1) {
         super(param, axoObj1);
     }
 
@@ -45,8 +45,8 @@ public class AttributeInstanceComboBox extends AttributeInstanceString<AxoAttrib
     public void PostConstructor() {
         super.PostConstructor();
 //        final DefaultComboBoxModel model = new DefaultComboBoxModel(((AxoAttributeComboBox) attr).getMenuEntries().toArray());
-        comboBox = new DropDownComponent(GetDefinition().getMenuEntries(), this);
-        comboBox.setFont(Constants.FONT);
+        comboBox = new DropDownComponent(((AxoAttributeComboBox) attr).getMenuEntries());
+        comboBox.setFont(Constants.font);
         setString(selection);
         comboBox.addItemListener(new DropDownComponent.DDCListener() {
             @Override
@@ -73,10 +73,7 @@ public class AttributeInstanceComboBox extends AttributeInstanceString<AxoAttrib
 
     @Override
     public String CValue() {
-        if (GetDefinition().getCEntries().isEmpty()) {
-            return "";
-        }
-        String s = GetDefinition().getCEntries().get(comboBox.getSelectedIndex());
+        String s = ((AxoAttributeComboBox) attr).getCEntries().get(comboBox.getSelectedIndex());
         if (s != null) {
             return s;
         } else {
@@ -95,9 +92,6 @@ public class AttributeInstanceComboBox extends AttributeInstanceString<AxoAttrib
         if (comboBox == null) {
             return;
         }
-        if (comboBox.getItemCount() == 0) {
-            return;
-        }
         if (selection == null) {
             this.selection = (String) comboBox.getItemAt(0);
         }
@@ -111,6 +105,5 @@ public class AttributeInstanceComboBox extends AttributeInstanceString<AxoAttrib
                 return;
             }
         }
-        java.util.logging.Logger.getLogger(AxoObjectInstance.class.getName()).log(Level.SEVERE, "Error: object \"{0}\" attribute \"{1}\", value \"{2}\" unmatched", new Object[]{GetObjectInstance().getInstanceName(), GetDefinition().getName(), selection});
     }
 }

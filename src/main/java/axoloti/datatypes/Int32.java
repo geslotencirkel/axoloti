@@ -17,7 +17,6 @@
  */
 package axoloti.datatypes;
 
-import axoloti.Theme;
 import java.awt.Color;
 
 /**
@@ -60,7 +59,7 @@ public class Int32 implements DataType {
 
     @Override
     public Color GetColor() {
-        return Theme.getCurrentTheme().Cable_Int32;
+        return Color.GREEN;
     }
 
     @Override
@@ -88,14 +87,9 @@ public class Int32 implements DataType {
         int hash = 8;
         return hash;
     }
-
+    
     @Override
     public boolean isPointer() {
         return false;
-    }
-
-    @Override
-    public String UnconnectedSink() {
-        return "UNCONNECTED_OUTPUT";
-    }
+    }    
 }

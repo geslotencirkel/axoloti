@@ -17,7 +17,6 @@
  */
 package generatedobjects;
 
-import axoloti.datatypes.ValueFrac32;
 import axoloti.inlets.Inlet;
 import axoloti.inlets.InletFrac32;
 import axoloti.inlets.InletFrac32Buffer;
@@ -75,7 +74,7 @@ public class Mixer extends gentools {
         o.outlets.add(new OutletFrac32("out", "mix out"));
         for (int ii = 0; ii < n; ii++) {
             o.inlets.add(new InletFrac32("in" + (ii + 1), "input " + (ii + 1)));
-            o.params.add(new ParameterFrac32UMap("gain" + (ii + 1), new ValueFrac32(32.0)));
+            o.params.add(new ParameterFrac32UMap("gain" + (ii + 1)));
         }
         o.sKRateCode = "{"
                 + "   int32_t accum = ___SMMUL(%in1%,%gain1%);\n";
@@ -94,7 +93,7 @@ public class Mixer extends gentools {
         for (int ii = 0; ii < n; ii++) {
             Inlet i = new InletFrac32Buffer("in" + (ii + 1), "input " + (ii + 1));
             o.inlets.add(i);
-            o.params.add(new ParameterFrac32UMap("gain" + (ii + 1), new ValueFrac32(32.0)));
+            o.params.add(new ParameterFrac32UMap("gain" + (ii + 1)));
         }
         o.sSRateCode = "{"
                 + "   int32_t accum = ___SMMUL(%in1%,%gain1%);\n";
@@ -113,7 +112,7 @@ public class Mixer extends gentools {
         for (int ii = 0; ii < n; ii++) {
             Inlet i = new InletFrac32Buffer("in" + (ii + 1), "input " + (ii + 1));
             o.inlets.add(i);
-            o.params.add(new ParameterFrac32UMapGain("gain" + (ii + 1), new ValueFrac32(32.0)));
+            o.params.add(new ParameterFrac32UMapGain("gain" + (ii + 1)));
         }
         o.sSRateCode = "   int32_t accum = ___SMMUL(%in1%,%gain1%);\n";
         for (int ii = 1; ii < n; ii++) {
@@ -129,7 +128,7 @@ public class Mixer extends gentools {
         o.outlets.add(new OutletFrac32("out", "mix out"));
         for (int ii = 0; ii < n; ii++) {
             o.inlets.add(new InletFrac32("in" + (ii + 1), "input " + (ii + 1)));
-            o.params.add(new ParameterFrac32UMapGain("gain" + (ii + 1), new ValueFrac32(32.0)));
+            o.params.add(new ParameterFrac32UMapGain("gain" + (ii + 1)));
         }
         o.sKRateCode = "   int32_t accum = ___SMMUL(%in1%,%gain1%);\n";
         for (int ii = 1; ii < n; ii++) {
@@ -146,7 +145,7 @@ public class Mixer extends gentools {
         for (int ii = 0; ii < n; ii++) {
             Inlet i = new InletFrac32Buffer("in" + (ii + 1), "input " + (ii + 1));
             o.inlets.add(i);
-            o.params.add(new ParameterFrac32UMapGainSquare("gain" + (ii + 1), new ValueFrac32(32.0)));
+            o.params.add(new ParameterFrac32UMapGainSquare("gain" + (ii + 1)));
         }
         o.sSRateCode = "   int32_t accum = ___SMMUL(%in1%,%gain1%);\n";
         for (int ii = 1; ii < n; ii++) {
@@ -162,7 +161,7 @@ public class Mixer extends gentools {
         o.outlets.add(new OutletFrac32("out", "mix out"));
         for (int ii = 0; ii < n; ii++) {
             o.inlets.add(new InletFrac32("in" + (ii + 1), "input " + (ii + 1)));
-            o.params.add(new ParameterFrac32UMapGainSquare("gain" + (ii + 1), new ValueFrac32(32.0)));
+            o.params.add(new ParameterFrac32UMapGainSquare("gain" + (ii + 1)));
         }
         o.sKRateCode = "   int32_t accum = ___SMMUL(%in1%,%gain1%);\n";
         for (int ii = 1; ii < n; ii++) {

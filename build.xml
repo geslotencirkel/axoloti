@@ -79,10 +79,6 @@
   <target name="-post-init" depends="create.build.version">
   </target>  
   <!-- Overrides -do-jar-->
-
-  <target name="-javadoc-build">
-  </target> 
-
   <target name="-do-jar">
 
     <!-- With included source files -->
@@ -100,12 +96,7 @@
       <fileset dir="build/classes"/>
 
       <!-- Include external library -->
-      <zipfileset excludes="META-INF/*.SF" src="lib/org.eclipse.jgit-4.2.0.jar"/>
-      <zipfileset excludes="META-INF/*.SF" src="lib/jsch-0.1.53.jar"/>
-      <zipfileset excludes="META-INF/*.SF" src="lib/slf4j-api-1.7.13.jar"/>
-      <zipfileset excludes="META-INF/*.SF" src="lib/slf4j-simple-1.7.13.jar"/>
       <zipfileset excludes="META-INF/*.SF" src="lib/simple-xml-2.7.1.jar"/>
-      <zipfileset excludes="META-INF/*.SF" src="lib/rsyntaxtextarea-2.5.8.jar"/>
       <zipfileset excludes="META-INF/*.SF" src="lib/usb4java-1.2.0/lib/usb4java-1.2.0.jar"/>
       <zipfileset excludes="META-INF/*.SF" src="lib/usb4java-1.2.0/lib/libusb4java-1.2.0-linux-arm.jar"/>
       <zipfileset excludes="META-INF/*.SF" src="lib/usb4java-1.2.0/lib/libusb4java-1.2.0-linux-x86.jar"/>
@@ -254,12 +245,7 @@
          		<include name="axoloti-app.jar"/>
 		 </fx:fileset>
 		 <fx:fileset dir="lib">
-             <include name="org.eclipse.jgit-4.2.0.jar"/>
-             <include name="jsch-0.1.53.jar"/>
-             <include name="slf4j-api-1.7.13.jar"/>
-             <include name="slf4j-simple-1.7.13.jar"/>
 			 <include name="simple-xml-2.7.1.jar"/>
-             <include name="rsyntaxtextarea-2.5.8.jar"/>
 			 <include name="usb4java-1.2.0/lib/usb4java-1.2.0.jar"/>
 			 <include name="usb4java-1.2.0/lib/libusb4java-1.2.0-linux-arm.jar"/>
 			 <include name="usb4java-1.2.0/lib/libusb4java-1.2.0-linux-x86.jar"/>
@@ -271,6 +257,8 @@
 		 </fx:fileset>
 		 <fx:fileset dir=".">
 			 <include name="doc/*"/>
+			 <include name="patches/**/*"/>
+			 <include name="objects/**/*"/>
 			 <include name="firmware/*" />
 			 <include name="firmware/STM*/**/*" />
 			 <include name="firmware/samples/*" />
@@ -279,10 +267,6 @@
 			 <include name="firmware/flasher/*" />
 			 <include name="firmware/flasher/flasher_build/*.bin" />
 			 <include name="firmware/flasher/flasher_build/*.elf" />
-			 <include name="firmware/mounter/*" />
-			 <include name="firmware/mounter/mass_storage/*" />
-			 <include name="firmware/mounter/mounter_build/*.bin" />
-			 <include name="firmware/mounter/mounter_build/*.elf" />
 			 <include name="chibios/*"/>
 			 <include name="chibios/boards/ST_STM32F4_DISCOVERY/*"/>
 			 <include name="chibios/ext/**/*"/>
@@ -326,7 +310,9 @@
 		     copyright="Axoloti.com" >
 		  		<fx:icon href="src/main/java/resources/icon_128x128.png"/>
 				<fx:splash href="src/main/java/resources/splash.png"/>
+<!-- not supported on travis jdk8 ?
 		  		<fx:association icon="src/main/java/resources/icon_128x128.png" mimetype="application/xml" extension="axp axs axh axo"/>
+-->
 	      	</fx:info>
 			<fx:application name="Axoloti" mainClass="axoloti.Axoloti" version="${short.version}"/>
 	    	<fx:resources refid="appRes"/>
@@ -340,7 +326,9 @@
 		     copyright="Axoloti.com" >
 				<fx:icon href="src/main/java/resources/axoloti_icon.icns"/>
 				<fx:splash href="src/main/java/resources/splash.png"/>
+<!-- not supported on travis jdk8 ?
 		  		<fx:association mimetype="application/xml" extension="axp axs axh axo"/>
+-->
 	      	</fx:info>
 			<fx:application name="Axoloti" mainClass="axoloti.Axoloti" version="${short.version}"/>
 	    	<fx:resources refid="appRes"/>
@@ -362,7 +350,9 @@
 		     copyright="Axoloti.com" >
 				<fx:icon href="src/main/java/resources/axoloti_icon.ico"/>
 				<fx:splash href="src/main/java/resources/splash.png"/>
+<!-- not supported on travis jdk8 ?
 		  		<fx:association icon="src/main/java/resources/axoloti_icon.ico" mimetype="application/xml" extension="axp axs axh axo"/>
+-->
 	      	</fx:info>
 			<fx:application name="Axoloti" mainClass="axoloti.Axoloti" version="${short.version}"/>
 	    <fx:resources refid="appRes"/>
@@ -378,7 +368,6 @@
         <exec executable="git" outputproperty="tag.short.version" failifexecutionfails="false">
             <arg line = "describe --tags --always" />
         </exec>
-        <property name="tag.short.version" value="(git missing)"/>
         <exec executable="sed" inputstring="${tag.short.version}" outputproperty="short.version" failifexecutionfails="false">
             <arg line = "'s/[a-zA-Z\-].*//'" />
 	</exec>
@@ -393,18 +382,12 @@
 		<echo> calculated ${build.version}</echo>
     </target>
 
-    <target name="create.build.version" depends = "calc.build.version, calc.short.version">
-		<tstamp>
-		    <format property="build.time" pattern="dd/MM/yyyy HH:mm:ss z"/>
-		</tstamp>
-		<property name="build.version" value="(git missing)"/>
-        <property name="short.version" value="(git missing)"/>
-        <echo output="src/main/java/axoloti/Version.java" >package axoloti;${line.separator}</echo>
-        <echo output="src/main/java/axoloti/Version.java" append="true">public class Version {${line.separator}</echo>
-        <echo output="src/main/java/axoloti/Version.java" append="true">public final static String AXOLOTI_VERSION = "${build.version}";${line.separator}</echo>
-        <echo output="src/main/java/axoloti/Version.java" append="true">public final static String AXOLOTI_SHORT_VERSION = "${short.version}";${line.separator}</echo>
-        <echo output="src/main/java/axoloti/Version.java" append="true">public final static String AXOLOTI_BUILD_TIME = "${build.time}";${line.separator}</echo>
-        <echo output="src/main/java/axoloti/Version.java" append="true">};${line.separator}</echo>
+    <target name="create.build.version" depends = "calc.build.version">
+        <property name="build.version" value="(git missing)"/>
+        <echo output="src/main/java/axoloti/Version.java" >package axoloti;</echo>
+        <echo output="src/main/java/axoloti/Version.java" append="true">public class Version {</echo>
+        <echo output="src/main/java/axoloti/Version.java" append="true">public final static String AXOLOTI_VERSION ="${build.version}";</echo>
+        <echo output="src/main/java/axoloti/Version.java" append="true">};</echo>
     </target>
       
 </project>

@@ -42,10 +42,4 @@ public class ParameterFrac32SMapKLineTimeExp extends ParameterFrac32SMap {
         return p;
     }
 
-    static public final String TypeName = "frac32.s.map.klineartime.exp";
-
-    @Override
-    public String getTypeName() {
-        return TypeName;
-    }
 }

@@ -17,15 +17,10 @@
  */
 package axoloti.dialogs;
 
-import axoloti.DocumentWindow;
-import axoloti.Patch;
 import axoloti.PatchSettings;
 import axoloti.SubPatchMode;
-import java.io.File;
-import java.util.ArrayList;
 import java.util.logging.Logger;
 import javax.swing.ImageIcon;
-import javax.swing.JFrame;
 import javax.swing.SpinnerModel;
 import javax.swing.SpinnerNumberModel;
 
@@ -33,21 +28,16 @@ import javax.swing.SpinnerNumberModel;
  *
  * @author Johannes Taelman
  */
-public class PatchSettingsFrame extends javax.swing.JFrame implements DocumentWindow {
+public class PatchSettingsFrame extends javax.swing.JFrame {
 
     PatchSettings settings;
 
-    final Patch patch;
-
     /**
      * Creates new form PatchSettingsFrame
-     *
-     * @param settings settings to load/save
+     * @param settings settings to load/save 
      */
-    public PatchSettingsFrame(PatchSettings settings, Patch patch) {
+    public PatchSettingsFrame(PatchSettings settings) {
         initComponents();
-        this.patch = patch;
-        setTitle("settings");
         setIconImage(new ImageIcon(getClass().getResource("/resources/axoloti_icon.png")).getImage());
         this.settings = settings;
         ((SpinnerNumberModel) jSpinnerMidiChannel.getModel()).setValue(settings.GetMidiChannel());
@@ -88,7 +78,7 @@ public class PatchSettingsFrame extends javax.swing.JFrame implements DocumentWi
                 jComboBoxMode.setSelectedIndex(5);
                 break;
         }
-        jCheckBoxHasChannelAttrib.setSelected(settings.GetMidiSelector());
+        jCheckBoxHasChannelAttrib.setSelected(settings.GetMidiChannelSelector());
         jCheckBoxSaturate.setSelected(settings.getSaturate());
     }
 
@@ -122,15 +112,6 @@ public class PatchSettingsFrame extends javax.swing.JFrame implements DocumentWi
         jCheckBoxSaturate = new javax.swing.JCheckBox();
         jLabel10 = new javax.swing.JLabel();
         jTextFieldAttributions = new javax.swing.JTextField();
-
-        addComponentListener(new java.awt.event.ComponentAdapter() {
-            public void componentHidden(java.awt.event.ComponentEvent evt) {
-                formComponentHidden(evt);
-            }
-            public void componentShown(java.awt.event.ComponentEvent evt) {
-                formComponentShown(evt);
-            }
-        });
 
         jLabel1.setText("MIDI Channel");
 
@@ -188,7 +169,7 @@ public class PatchSettingsFrame extends javax.swing.JFrame implements DocumentWi
             }
         });
 
-        jCheckBoxHasChannelAttrib.setText("Has MIDI selector");
+        jCheckBoxHasChannelAttrib.setText("Has MIDI channel attribute");
         jCheckBoxHasChannelAttrib.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 jCheckBoxHasChannelAttribActionPerformed(evt);
@@ -397,7 +378,7 @@ public class PatchSettingsFrame extends javax.swing.JFrame implements DocumentWi
     }//GEN-LAST:event_jSpinnerModulationTargetsStateChanged
 
     private void jCheckBoxHasChannelAttribActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jCheckBoxHasChannelAttribActionPerformed
-        settings.SetMidiSelector(jCheckBoxHasChannelAttrib.isSelected());
+        settings.SetMidiChannelSelector(jCheckBoxHasChannelAttrib.isSelected());
     }//GEN-LAST:event_jCheckBoxHasChannelAttribActionPerformed
 
     private void jComboBoxLicenseActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jComboBoxLicenseActionPerformed
@@ -417,14 +398,6 @@ public class PatchSettingsFrame extends javax.swing.JFrame implements DocumentWi
     private void jTextFieldAttributionsFocusLost(java.awt.event.FocusEvent evt) {//GEN-FIRST:event_jTextFieldAttributionsFocusLost
         settings.setAttributions(jTextFieldAttributions.getText());
     }//GEN-LAST:event_jTextFieldAttributionsFocusLost
-
-    private void formComponentHidden(java.awt.event.ComponentEvent evt) {//GEN-FIRST:event_formComponentHidden
-        patch.getPatchframe().GetChildDocuments().remove(this);
-    }//GEN-LAST:event_formComponentHidden
-
-    private void formComponentShown(java.awt.event.ComponentEvent evt) {//GEN-FIRST:event_formComponentShown
-        patch.getPatchframe().GetChildDocuments().add(this);
-    }//GEN-LAST:event_formComponentShown
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JCheckBox jCheckBoxHasChannelAttrib;
@@ -449,24 +422,4 @@ public class PatchSettingsFrame extends javax.swing.JFrame implements DocumentWi
     private javax.swing.JTextField jTextFieldAttributions;
     private javax.swing.JTextField jTextFieldAuthor;
     // End of variables declaration//GEN-END:variables
-
-    @Override
-    public JFrame GetFrame() {
-        return this;
-    }
-
-    @Override
-    public boolean AskClose() {
-        return false;
-    }
-
-    @Override
-    public File getFile() {
-        return null;
-    }
-
-    @Override
-    public ArrayList<DocumentWindow> GetChildDocuments() {
-        return null;
-    }
 }

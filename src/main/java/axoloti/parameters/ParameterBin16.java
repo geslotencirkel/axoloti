@@ -17,11 +17,13 @@
  */
 package axoloti.parameters;
 
+import axoloti.datatypes.Int32;
+
 /**
  *
  * @author Johannes Taelman
  */
-public class ParameterBin16 extends Parameter {
+public class ParameterBin16 extends Parameter<Int32> {
 
     public ParameterBin16() {
     }
@@ -33,12 +35,5 @@ public class ParameterBin16 extends Parameter {
     @Override
     public ParameterInstanceBin16 InstanceFactory() {
         return new ParameterInstanceBin16();
-    }
-
-    static public final String TypeName = "bin16";
-
-    @Override
-    public String getTypeName() {
-        return TypeName;
     }
 }

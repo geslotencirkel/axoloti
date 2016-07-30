@@ -21,7 +21,6 @@
 
 typedef struct {
   int32_t header;
-  uint32_t patchID;
   int32_t value;
   int32_t index;
 } PExMessage;

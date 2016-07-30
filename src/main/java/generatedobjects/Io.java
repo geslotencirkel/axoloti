@@ -18,7 +18,6 @@
 package generatedobjects;
 
 import axoloti.attributedefinition.AxoAttributeComboBox;
-import axoloti.displays.DisplayFrac32VU;
 import axoloti.inlets.InletBool32;
 import axoloti.inlets.InletFrac32;
 import axoloti.inlets.InletFrac32Buffer;
@@ -27,6 +26,7 @@ import axoloti.object.AxoObject;
 import axoloti.outlets.OutletBool32;
 import axoloti.outlets.OutletFrac32;
 import axoloti.outlets.OutletFrac32Buffer;
+import displays.DisplayFrac32VU;
 import static generatedobjects.gentools.WriteAxoObject;
 
 /**
@@ -415,22 +415,11 @@ public class Io extends gentools {
         String ADCBoostM[] = {"Mute", "0dB", "20dB"};
         String ADCBoostC[] = {"0", "1", "2"};
         o.attributes.add(new AxoAttributeComboBox("boost", ADCBoostM, ADCBoostC));
-        String InputModeM[] = {
-            "Stereo",
-            "Mono(L)",
-            "Balanced(L)"
-        };
-        String InputModeC[] = {
-            "A_STEREO",
-            "A_MONO",
-            "A_BALANCED"
-        };
-        o.attributes.add(new AxoAttributeComboBox("mode", InputModeM, InputModeC));
+
         o.sInitCode = "ADAU1961_WriteRegister(0x400E,(%gain%<<2)+3);\n"
                 + "ADAU1961_WriteRegister(0x400F,(%gain%<<2)+3);\n"
                 + "ADAU1961_WriteRegister(0x400B,(%boost%<<3)+0);\n"
-                + "ADAU1961_WriteRegister(0x400D,(%boost%<<3)+0);\n"
-                + "AudioInputMode = %mode%;\n";
+                + "ADAU1961_WriteRegister(0x400D,(%boost%<<3)+0);\n";
         return o;
     }
 
@@ -582,21 +571,8 @@ public class Io extends gentools {
             "63"
         };
         o.attributes.add(new AxoAttributeComboBox("headphones", HPVolM, HPVolC));
-        String OutputModeM[] = {
-            "Stereo",
-            "Mono(L)",
-            "Balanced(L)"
-        };
-        String OutputModeC[] = {
-            "A_STEREO",
-            "A_MONO",
-            "A_BALANCED"
-        };
-        o.attributes.add(new AxoAttributeComboBox("mode", OutputModeM, OutputModeC));
         o.sInitCode = "ADAU1961_WriteRegister(0x4023,(%headphones%<<2)+3);\n"
-                + "ADAU1961_WriteRegister(0x4024,(%headphones%<<2)+3);\n"
-                + "AudioOutputMode = %mode%;\n"
-                ;
+                + "ADAU1961_WriteRegister(0x4024,(%headphones%<<2)+3);\n";
         return o;
     }
 

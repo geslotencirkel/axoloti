@@ -25,8 +25,6 @@ import axoloti.Connection;
  */
 public class QCmdGetFileList implements QCmdSerialTask {
 
-    boolean done = true;
-
     @Override
     public String GetStartMessage() {
         return "";
@@ -34,26 +32,13 @@ public class QCmdGetFileList implements QCmdSerialTask {
 
     @Override
     public String GetDoneMessage() {
-        if (done) {
-            return "Finished receiving sdcard file list";
-        } else {
-            return "Incomplete sdcard file list...";
-        }
+        return "";
     }
 
     @Override
     public QCmd Do(Connection connection) {
         connection.ClearSync();
-        connection.ClearReadSync();
         connection.TransmitGetFileList();
-        int timeout = 0;
-        while (!connection.WaitReadSync()) {
-            timeout++;
-            if (timeout > 20) {
-                done = false;
-                break;
-            }
-        }
         return this;
     }
 }
